@@ -1,0 +1,28 @@
+[package]
+name = "shadertoy"
+version = "0.1.0"
+authors = ["Guillaume Anthouard <guillaume.anthouard@hotmail.fr>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[profile.release]
+lto = "fat"
+opt-level = 3
+codegen-units = 1
+
+[dependencies]
+# GPU API
+wgpu = { version = "0.6" }
+# Windowing
+winit = { version = "0.24" }
+# Minimal async executor
+pollster = { version = "0.2" }
+# logger impl
+pretty_env_logger = { version = "0.4" }
+# logger api
+log = { version = "0.4" }
+
+[build-dependencies]
+#spirv-compiler = "0.1"
+shaderc = "0.7"
