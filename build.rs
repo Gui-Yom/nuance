@@ -3,12 +3,14 @@ use std::fs;
 use shaderc::{CompileOptions, Compiler, EnvVersion, OptimizationLevel, ShaderKind, SourceLanguage, TargetEnv};
 
 fn main() {
-    let files: Vec<_> = std::fs::read_dir("src/shaders").unwrap().map(|e| {
+    let files: Vec<_> = std::fs::read_dir("src/shaders").unwrap().filter_map(|e| {
         let filename = format!("src/shaders/{}", e.unwrap().file_name().to_str().unwrap());
         if !filename.ends_with(".spv") {
             println!("cargo:rerun-if-changed={}", filename);
+            Some(filename)
+        } else {
+            None
         }
-        filename
     }).collect();
 
     let mut compiler = Compiler::new().unwrap();

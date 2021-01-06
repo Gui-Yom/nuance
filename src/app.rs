@@ -1,8 +1,9 @@
+use log::{debug, info};
 use wgpu::{
     BindGroupLayoutDescriptor, Color, CommandEncoderDescriptor, CullMode,
-    FrontFace, IndexFormat, Instance, LoadOp, Operations,
-    PipelineLayoutDescriptor, PowerPreference, PresentMode,
-    PrimitiveTopology, ProgrammableStageDescriptor,
+    FrontFace, include_spirv, IndexFormat, Instance, LoadOp,
+    Operations, PipelineLayoutDescriptor, PowerPreference,
+    PresentMode, PrimitiveTopology, ProgrammableStageDescriptor,
     RasterizationStateDescriptor, RenderPassColorAttachmentDescriptor,
     RenderPassDescriptor, RenderPipelineDescriptor,
     RequestAdapterOptions, SwapChainDescriptor, TextureFormat,
@@ -132,7 +133,7 @@ pub(crate) async fn run(window: &Window, event_loop: EventLoop<()>, instance: &I
         }),
         // How the gpu should interpret our vertex buffer
         // In our case, it's just a single triangle
-        primitive_topology: PrimitiveTopology::Triangle,
+        primitive_topology: PrimitiveTopology::TriangleList,
         color_states: &[format.into()],
         depth_stencil_state: None,
         // Describe our vertex buffers
