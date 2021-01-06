@@ -108,7 +108,7 @@ pub(crate) async fn run(window: &Window, event_loop: EventLoop<()>, instance: &I
     // The vertex shader (place triangles for rasterization)
     let vertex_shader = &device.create_shader_module(include_spirv!("shaders/screen.vert.spv"));
     // The fragment shader (colorize our triangles)
-    let fragment_shader = &device.create_shader_module(include_spirv!("shaders/red.frag.spv"));
+    let fragment_shader = &device.create_shader_module(include_spirv!("shaders/wow.frag.spv"));
 
     // Describes the operations to execute on a render pass
     let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {

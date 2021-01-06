@@ -1,5 +1,8 @@
 #version 460
 
+// The sole purpose of this shader is to create a triangle filling the whole screen
+// so we can run our pixel shader for each of the pixel on the screen.
+
 out gl_PerVertex {
     vec4 gl_Position;
 };
