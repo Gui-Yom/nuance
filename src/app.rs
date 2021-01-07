@@ -1,5 +1,5 @@
-use log::{debug, info};
-use wgpu::{BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BufferUsage, Color, CommandEncoderDescriptor, CullMode, FrontFace, include_spirv, IndexFormat, Instance, LoadOp, Operations, PipelineLayoutDescriptor, PowerPreference, PresentMode, PrimitiveTopology, ProgrammableStageDescriptor, RasterizationStateDescriptor, RenderPassColorAttachmentDescriptor, RenderPassDescriptor, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleSource, ShaderStage, SwapChainDescriptor, TextureFormat, TextureUsage, VertexStateDescriptor};
+use log::info;
+use wgpu::{BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BufferUsage, Color, CommandEncoderDescriptor, CullMode, FrontFace, include_spirv, IndexFormat, Instance, LoadOp, Operations, PipelineLayoutDescriptor, PowerPreference, PresentMode, PrimitiveTopology, ProgrammableStageDescriptor, RasterizationStateDescriptor, RenderPassColorAttachmentDescriptor, RenderPassDescriptor, RenderPipelineDescriptor, RequestAdapterOptions, ShaderStage, SwapChainDescriptor, TextureFormat, TextureUsage, VertexStateDescriptor};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};

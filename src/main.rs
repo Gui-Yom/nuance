@@ -1,9 +1,8 @@
-use log::{debug, info};
+use log::debug;
 use wgpu::{BackendBit, Instance};
 use winit::dpi::LogicalSize;
-use winit::event::{Event, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::{Window, WindowBuilder};
+use winit::event_loop::EventLoop;
+use winit::window::{WindowBuilder, Window};
 
 mod app;
 mod shader_loader;
