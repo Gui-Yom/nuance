@@ -6,6 +6,7 @@ use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
 
 mod app;
+mod shader_loader;
 
 fn create_window() -> (Window, EventLoop<()>) {
     let event_loop = EventLoop::new();
@@ -38,5 +39,5 @@ fn main() {
         });
 
     // Going async !
-    pollster::block_on(app::run(&window, event_loop, &instance));
+    futures::executor::block_on(app::run(&window, event_loop, &instance));
 }

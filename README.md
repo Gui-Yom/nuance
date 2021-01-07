@@ -4,13 +4,14 @@
 Currently a good demo for wgpu-rs
 
 ### Shaders
-Shaders are written with GLSL (`#version 460`) and recompiled
-automatically to SPIR-V when changed.
+Shaders are written with GLSL (`#version 460`).
 
 ### TODO
- - Runtime shader compilation
  - Live reloading shaders
- - Bind uniforms (time and other params)
+ - Bind uniforms
+   - time in milliseconds (iTime)
+   - screen resolution (vec3 Resolution (width, height, ratio))
+   - custom values ?
  - Bind resources (like textures)
- - CLI
- - GUI
+ - CLI (clap)
+ - GUI (imgui)

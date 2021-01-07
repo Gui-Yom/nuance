@@ -1,17 +1,10 @@
 use log::{debug, info};
-use wgpu::{
-    BindGroupLayoutDescriptor, Color, CommandEncoderDescriptor, CullMode,
-    FrontFace, include_spirv, IndexFormat, Instance, LoadOp,
-    Operations, PipelineLayoutDescriptor, PowerPreference,
-    PresentMode, PrimitiveTopology, ProgrammableStageDescriptor,
-    RasterizationStateDescriptor, RenderPassColorAttachmentDescriptor,
-    RenderPassDescriptor, RenderPipelineDescriptor,
-    RequestAdapterOptions, SwapChainDescriptor, TextureFormat,
-    TextureUsage, VertexStateDescriptor,
-};
+use wgpu::{BindGroupLayoutDescriptor, Color, CommandEncoderDescriptor, CullMode, FrontFace, include_spirv, IndexFormat, Instance, LoadOp, Operations, PipelineLayoutDescriptor, PowerPreference, PresentMode, PrimitiveTopology, ProgrammableStageDescriptor, RasterizationStateDescriptor, RenderPassColorAttachmentDescriptor, RenderPassDescriptor, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleSource, SwapChainDescriptor, TextureFormat, TextureUsage, VertexStateDescriptor};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::Window;
+
+use crate::shader_loader::ShaderLoader;
 
 pub(crate) async fn run(window: &Window, event_loop: EventLoop<()>, instance: &Instance) {
 
@@ -105,10 +98,12 @@ pub(crate) async fn run(window: &Window, event_loop: EventLoop<()>, instance: &I
         push_constant_ranges: &[],
     });
 
+    let mut shader_loader = ShaderLoader::new();
+
     // The vertex shader (place triangles for rasterization)
     let vertex_shader = &device.create_shader_module(include_spirv!("shaders/screen.vert.spv"));
     // The fragment shader (colorize our triangles)
-    let fragment_shader = &device.create_shader_module(include_spirv!("shaders/wow.frag.spv"));
+    let fragment_shader = &device.create_shader_module(shader_loader.load_shader("shaders/wow.frag").expect("Can't load shader"));
 
     // Describes the operations to execute on a render pass
     let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {

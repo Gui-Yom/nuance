@@ -16,13 +16,11 @@ codegen-units = 1
 wgpu = { version = "0.6" }
 # Windowing
 winit = { version = "0.24" }
-# Minimal async executor
-pollster = { version = "0.2" }
+# Async runtime
+futures = { version = "0.3" }
 # logger impl
 pretty_env_logger = { version = "0.4" }
 # logger api
 log = { version = "0.4" }
-
-[build-dependencies]
-#spirv-compiler = "0.1"
+# To compile shaders to spir-v
 shaderc = "0.7"
