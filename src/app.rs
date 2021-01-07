@@ -101,6 +101,7 @@ pub(crate) async fn run(window: &Window, event_loop: EventLoop<()>, instance: &I
     let mut shader_loader = ShaderLoader::new();
 
     // The vertex shader (place triangles for rasterization)
+    // It is included at compilation because it won't ever change
     let vertex_shader = &device.create_shader_module(include_spirv!("shaders/screen.vert.spv"));
     // The fragment shader (colorize our triangles)
     let fragment_shader = &device.create_shader_module(shader_loader.load_shader("shaders/wow.frag").expect("Can't load shader"));
