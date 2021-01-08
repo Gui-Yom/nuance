@@ -2,84 +2,47 @@ use core::mem;
 use std::time::{Duration, Instant};
 
 use bytemuck::{Pod, Zeroable};
-use log::info;
-use wgpu::{Color, CommandEncoderDescriptor, CullMode, Features, FrontFace, include_spirv, IndexFormat, Instance, Limits, LoadOp, Operations, PipelineLayoutDescriptor, PowerPreference, PresentMode, PrimitiveTopology, ProgrammableStageDescriptor, PushConstantRange, RasterizationStateDescriptor, RenderPassColorAttachmentDescriptor, RenderPassDescriptor, RenderPipelineDescriptor, RequestAdapterOptions, ShaderStage, SwapChainDescriptor, TextureFormat, TextureUsage, VertexStateDescriptor};
+use log::{debug, info};
+use wgpu::{
+    include_spirv, Adapter, BackendBit, Color, CommandEncoderDescriptor, CullMode, Device,
+    Features, FrontFace, IndexFormat, Instance, Limits, LoadOp, Operations,
+    PipelineLayoutDescriptor, PowerPreference, PresentMode, PrimitiveTopology,
+    ProgrammableStageDescriptor, PushConstantRange, Queue, RasterizationStateDescriptor,
+    RenderPassColorAttachmentDescriptor, RenderPassDescriptor, RenderPipelineDescriptor,
+    RequestAdapterOptions, ShaderStage, Surface, SwapChain, SwapChainDescriptor, TextureFormat,
+    TextureUsage, VertexStateDescriptor,
+};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::Window;
 
 use crate::shader_loader::ShaderLoader;
 
+/// The globals we pass to the fragment shader
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 struct Globals {
-    time: u32,
+    /// Draw area width
     width: u32,
+    /// Draw area height
     height: u32,
+    /// Draw area width/height ratio
     ratio: f32,
+    /// Current time (will be 0 the first time)
+    time: u32,
+    /// Time before the last frame
+    time_delta: u32,
 }
 
-pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &Instance) {
+pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
+    let (_instance, _adapter, device, queue, surface) = init_wgpu(&window).await;
 
-    // The surface describes where we'll draw our output
-    let surface = unsafe { instance.create_surface(&window) };
-
-    let adapter = instance
-        .request_adapter(&RequestAdapterOptions {
-            // Use an integrated gpu if possible
-            power_preference: PowerPreference::LowPower,
-            compatible_surface: Some(&surface),
-        })
-        .await
-        .expect("Can't find a low power adapter !");
-
-    info!(
-        "picked adapter : {}: {:?} ({:?})",
-        adapter.get_info().name,
-        adapter.get_info().device_type,
-        adapter.get_info().backend
-    );
-
-    // A device is an open connection to a gpu
-    let (device, queue) = adapter
-        .request_device(
-            &wgpu::DeviceDescriptor {
-                features: Features::PUSH_CONSTANTS,
-                limits: Limits {
-                    max_bind_groups: 1,
-                    max_dynamic_uniform_buffers_per_pipeline_layout: 0,
-                    max_dynamic_storage_buffers_per_pipeline_layout: 0,
-                    max_sampled_textures_per_shader_stage: 0,
-                    max_samplers_per_shader_stage: 0,
-                    max_storage_buffers_per_shader_stage: 0,
-                    max_storage_textures_per_shader_stage: 0,
-                    max_uniform_buffers_per_shader_stage: 1,
-                    max_uniform_buffer_binding_size: 0,
-                    max_push_constant_size: mem::size_of::<Globals>() as u32,
-                },
-                shader_validation: true,
-            },
-            None,
-        )
-        .await
-        .expect("Failed to create device");
-
-    let size = window.inner_size();
+    let window_size = window.inner_size();
 
     // The output format
     let format = TextureFormat::Rgba8UnormSrgb;
 
-    // Here we create the swap chain, which is basically what does the job of
-    // rendering our output in sync
-    let sc_desc = SwapChainDescriptor {
-        usage: TextureUsage::OUTPUT_ATTACHMENT,
-        format,
-        width: size.width,
-        height: size.height,
-        present_mode: PresentMode::Mailbox,
-    };
-
-    let mut swap_chain = device.create_swap_chain(&surface, &sc_desc);
+    let mut swapchain = create_swapchain(&device, &surface, format, window_size.into());
 
     // This is totally unused atm
     /*
@@ -131,16 +94,26 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &In
     // It is included at compilation because it won't ever change
     let vertex_shader = &device.create_shader_module(include_spirv!("shaders/screen.vert.spv"));
     // The fragment shader (colorize our triangles)
-    let fragment_shader = &device.create_shader_module(shader_loader.load_shader("shaders/uniforms.frag").expect("Can't load shader"));
+    let fragment_shader = &device.create_shader_module(
+        shader_loader
+            .load_shader("shaders/uniforms.frag")
+            .expect("Can't load shader"),
+    );
 
     // Describes the operations to execute on a render pass
     let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
         label: Some("main render"),
         layout: Some(&pipeline_layout),
         // First, place our points and triangles
-        vertex_stage: ProgrammableStageDescriptor { module: vertex_shader, entry_point: "main" },
+        vertex_stage: ProgrammableStageDescriptor {
+            module: vertex_shader,
+            entry_point: "main",
+        },
         // Draw a color on them
-        fragment_stage: Some(ProgrammableStageDescriptor { module: fragment_shader, entry_point: "main" }),
+        fragment_stage: Some(ProgrammableStageDescriptor {
+            module: fragment_shader,
+            entry_point: "main",
+        }),
         // Describes the rasterization stage
         rasterization_state: Some(RasterizationStateDescriptor {
             // The orientation of our triangles
@@ -175,14 +148,15 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &In
     let background_color = Color::BLACK;
 
     let mut globals = Globals {
+        width: window_size.width,
+        height: window_size.height,
+        ratio: window_size.width as f32 / window_size.height as f32,
         time: 0,
-        width: size.width,
-        height: size.height,
-        ratio: size.width as f32 / size.height as f32,
+        time_delta: 0,
     };
     let started = Instant::now();
     let mut last_draw_time = Instant::now();
-    let target_framerate = Duration::from_secs_f32(1.0 / 60.0);
+    let target_framerate = Duration::from_secs_f32(1.0 / 30.0);
 
     event_loop.run(move |event, _, control_flow| {
         // Run this loop indefinitely
@@ -194,15 +168,15 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &In
                     window.request_redraw();
                     last_draw_time = Instant::now();
                 } else {
-                    *control_flow = ControlFlow::WaitUntil(
-                        Instant::now() + target_framerate - frame_time,
-                    );
+                    *control_flow =
+                        ControlFlow::WaitUntil(Instant::now() + target_framerate - frame_time);
                 }
                 globals.time = started.elapsed().as_millis() as u32;
+                globals.time_delta = frame_time.as_millis() as u32;
             }
             Event::RedrawRequested(_) => {
                 // We use double buffering, so select the output texture
-                let frame = swap_chain
+                let frame = swapchain
                     .get_current_frame()
                     .expect("Failed to acquire next swap chain texture")
                     .output;
@@ -229,7 +203,11 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &In
                     // Associated data
                     //_rpass.set_bind_group(0, &bind_group, &[]);
                     // Push constants mapped to uniform block
-                    _rpass.set_push_constants(ShaderStage::FRAGMENT, 0, bytemuck::cast_slice(&[globals]));
+                    _rpass.set_push_constants(
+                        ShaderStage::FRAGMENT,
+                        0,
+                        bytemuck::cast_slice(&[globals]),
+                    );
 
                     // We have no vertices, they are generated by the vertex shader in place.
                     // But we act like we have 3, so the gpu calls the vertex shader 3 times.
@@ -247,4 +225,83 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &In
             _ => {}
         }
     });
+}
+
+async fn init_wgpu(window: &Window) -> (Instance, Adapter, Device, Queue, Surface) {
+    let instance = Instance::new(BackendBit::PRIMARY);
+    debug!("Found adapters :");
+    instance
+        .enumerate_adapters(BackendBit::PRIMARY)
+        .for_each(|it| {
+            debug!(
+                " - {}: {:?} ({:?})",
+                it.get_info().name,
+                it.get_info().device_type,
+                it.get_info().backend
+            );
+        });
+
+    // The surface describes where we'll draw our output
+    let surface = unsafe { instance.create_surface(window) };
+
+    let adapter = instance
+        .request_adapter(&RequestAdapterOptions {
+            // Use an integrated gpu if possible
+            power_preference: PowerPreference::LowPower,
+            compatible_surface: Some(&surface),
+        })
+        .await
+        .expect("Can't find a low power adapter !");
+
+    info!(
+        "picked adapter : {}: {:?} ({:?})",
+        adapter.get_info().name,
+        adapter.get_info().device_type,
+        adapter.get_info().backend
+    );
+
+    // A device is an open connection to a gpu
+    let (device, queue) = adapter
+        .request_device(
+            &wgpu::DeviceDescriptor {
+                features: Features::PUSH_CONSTANTS,
+                limits: Limits {
+                    max_bind_groups: 1,
+                    max_dynamic_uniform_buffers_per_pipeline_layout: 0,
+                    max_dynamic_storage_buffers_per_pipeline_layout: 0,
+                    max_sampled_textures_per_shader_stage: 0,
+                    max_samplers_per_shader_stage: 0,
+                    max_storage_buffers_per_shader_stage: 0,
+                    max_storage_textures_per_shader_stage: 0,
+                    max_uniform_buffers_per_shader_stage: 1,
+                    max_uniform_buffer_binding_size: 0,
+                    max_push_constant_size: mem::size_of::<Globals>() as u32,
+                },
+                shader_validation: true,
+            },
+            None,
+        )
+        .await
+        .expect("Failed to create device");
+
+    (instance, adapter, device, queue, surface)
+}
+
+fn create_swapchain(
+    device: &Device,
+    surface: &Surface,
+    format: TextureFormat,
+    (width, height): (u32, u32),
+) -> SwapChain {
+    // Here we create the swap chain, which is basically what does the job of
+    // rendering our output in sync
+    let sc_desc = SwapChainDescriptor {
+        usage: TextureUsage::OUTPUT_ATTACHMENT,
+        format,
+        width,
+        height,
+        present_mode: PresentMode::Mailbox,
+    };
+
+    device.create_swap_chain(&surface, &sc_desc)
 }
