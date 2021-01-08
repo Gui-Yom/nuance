@@ -19,6 +19,7 @@ use winit::window::Window;
 use crate::shader_loader::ShaderLoader;
 
 /// The globals we pass to the fragment shader
+/// aligned to 32bit words
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 struct Globals {
@@ -28,10 +29,10 @@ struct Globals {
     height: u32,
     /// Draw area width/height ratio
     ratio: f32,
-    /// Current time (will be 0 the first time)
-    time: u32,
-    /// Time before the last frame
-    time_delta: u32,
+    /// Current running time in sec (will be 0 the first time)
+    time: f32,
+    /// Time since the last frame in sec
+    time_delta: f32,
 }
 
 pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
@@ -151,8 +152,8 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
         width: window_size.width,
         height: window_size.height,
         ratio: window_size.width as f32 / window_size.height as f32,
-        time: 0,
-        time_delta: 0,
+        time: 0.0,
+        time_delta: 0.0,
     };
     let started = Instant::now();
     let mut last_draw_time = Instant::now();
@@ -171,8 +172,8 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
                     *control_flow =
                         ControlFlow::WaitUntil(Instant::now() + target_framerate - frame_time);
                 }
-                globals.time = started.elapsed().as_millis() as u32;
-                globals.time_delta = frame_time.as_millis() as u32;
+                globals.time = started.elapsed().as_secs_f32();
+                globals.time_delta = frame_time.as_secs_f32();
             }
             Event::RedrawRequested(_) => {
                 // We use double buffering, so select the output texture

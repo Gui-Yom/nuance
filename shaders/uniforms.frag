@@ -8,10 +8,10 @@ layout(push_constant) uniform Globals {
     uint uHeight;
 // Aspect ratio
     float fRatio;
-// Time in ms
-    uint uTime;
-// Time since last frame in ms
-    uint uTimeDelta;
+// Time in sec
+    float uTime;
+// Time since last frame in sec
+    float uTimeDelta;
 };
 
 void main() {
@@ -19,8 +19,8 @@ void main() {
     float r = length(gl_FragCoord.xy - center);
     if (r <= 10) {
         outColor = vec4(1.0, 0.0, 0.0, 1.0);
-    } else if (r <= uTimeDelta * 4.0 + 10) {
-        outColor = vec4(0.0, (sin(uTime * 1.0 / 500.0) + 1.0) / 2.0, 0.0, 1.0);
+    } else if (r <= uTimeDelta * 1000.0 * 4.0 + 10) {
+        outColor = vec4(0.0, (sin(uTime * 2.0) + 1.0) / 2.0, 0.0, 1.0);
     } else {
         outColor = vec4(0.0, 0.0, 1.0, 1.0);
     }
