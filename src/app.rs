@@ -1,5 +1,7 @@
+use std::time::{Duration, Instant};
+
 use log::info;
-use wgpu::{BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BufferUsage, Color, CommandEncoderDescriptor, CullMode, FrontFace, include_spirv, IndexFormat, Instance, LoadOp, Operations, PipelineLayoutDescriptor, PowerPreference, PresentMode, PrimitiveTopology, ProgrammableStageDescriptor, RasterizationStateDescriptor, RenderPassColorAttachmentDescriptor, RenderPassDescriptor, RenderPipelineDescriptor, RequestAdapterOptions, ShaderStage, SwapChainDescriptor, TextureFormat, TextureUsage, VertexStateDescriptor};
+use wgpu::{BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BufferDescriptor, BufferUsage, Color, CommandEncoderDescriptor, CullMode, FrontFace, include_spirv, IndexFormat, Instance, LoadOp, MapMode, Operations, PipelineLayoutDescriptor, PowerPreference, PresentMode, PrimitiveTopology, ProgrammableStageDescriptor, RasterizationStateDescriptor, RenderPassColorAttachmentDescriptor, RenderPassDescriptor, RenderPipelineDescriptor, RequestAdapterOptions, ShaderStage, SwapChainDescriptor, TextureFormat, TextureUsage, VertexStateDescriptor};
 use wgpu::util::{BufferInitDescriptor, DeviceExt};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -7,10 +9,10 @@ use winit::window::Window;
 
 use crate::shader_loader::ShaderLoader;
 
-pub(crate) async fn run(window: &Window, event_loop: EventLoop<()>, instance: &Instance) {
+pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &Instance) {
 
     // The surface describes where we'll draw our output
-    let surface = unsafe { instance.create_surface(window) };
+    let surface = unsafe { instance.create_surface(&window) };
 
     let adapter = instance
         .request_adapter(&RequestAdapterOptions {
@@ -76,9 +78,9 @@ pub(crate) async fn run(window: &Window, event_loop: EventLoop<()>, instance: &I
     // Currently unused
     // We will pass data to the shader with this uniform buffer object
     let uniform_buffer = device.create_buffer_init(&BufferInitDescriptor {
-        label: None,
-        contents: &150.0_f32.to_ne_bytes(),
-        usage: BufferUsage::UNIFORM,
+        label: Some("Globals"),
+        contents: &[0, 0, 0, 0],
+        usage: BufferUsage::UNIFORM | BufferUsage::COPY_DST,
     });
 
     let bind_group = device.create_bind_group(&BindGroupDescriptor {
@@ -146,9 +148,27 @@ pub(crate) async fn run(window: &Window, event_loop: EventLoop<()>, instance: &I
     // The background color
     let background_color = Color::BLACK;
 
+    let mut time: u32 = 0;
+    let started = Instant::now();
+    let mut last_draw_time = Instant::now();
+    let target_framerate = Duration::from_secs_f32(1.0 / 60.0);
+
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+        // Run this loop indefinitely
+        *control_flow = ControlFlow::Poll;
         match event {
+            Event::MainEventsCleared => {
+                let frame_time = last_draw_time.elapsed();
+                if frame_time >= target_framerate {
+                    window.request_redraw();
+                    last_draw_time = Instant::now();
+                } else {
+                    *control_flow = ControlFlow::WaitUntil(
+                        Instant::now() + target_framerate - frame_time,
+                    );
+                }
+                time = started.elapsed().as_millis() as u32;
+            }
             Event::RedrawRequested(_) => {
                 // We use double buffering, so select the output texture
                 let frame = swap_chain
@@ -179,6 +199,7 @@ pub(crate) async fn run(window: &Window, event_loop: EventLoop<()>, instance: &I
                     // But we act like we have 3, so the gpu calls the vertex shader 3 times.
                     _rpass.draw(0..3, 0..1);
                 }
+                queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[time]));
 
                 // Launch !
                 queue.submit(Some(encoder.finish()));

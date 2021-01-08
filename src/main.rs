@@ -2,7 +2,7 @@ use log::debug;
 use wgpu::{BackendBit, Instance};
 use winit::dpi::LogicalSize;
 use winit::event_loop::EventLoop;
-use winit::window::{WindowBuilder, Window};
+use winit::window::{Window, WindowBuilder};
 
 mod app;
 mod shader_loader;
@@ -38,5 +38,5 @@ fn main() {
         });
 
     // Going async !
-    futures::executor::block_on(app::run(&window, event_loop, &instance));
+    futures::executor::block_on(app::run(window, event_loop, &instance));
 }

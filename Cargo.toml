@@ -26,3 +26,5 @@ log = { version = "0.4" }
 shaderc = "0.7"
 # Error types
 thiserror = "1.0"
+# Converting types to bytes
+bytemuck = "1.4"
