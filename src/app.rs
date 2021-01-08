@@ -1,13 +1,19 @@
 use std::time::{Duration, Instant};
 
+use bytemuck::{Pod, Zeroable};
 use log::info;
-use wgpu::{BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BufferDescriptor, BufferUsage, Color, CommandEncoderDescriptor, CullMode, FrontFace, include_spirv, IndexFormat, Instance, LoadOp, MapMode, Operations, PipelineLayoutDescriptor, PowerPreference, PresentMode, PrimitiveTopology, ProgrammableStageDescriptor, RasterizationStateDescriptor, RenderPassColorAttachmentDescriptor, RenderPassDescriptor, RenderPipelineDescriptor, RequestAdapterOptions, ShaderStage, SwapChainDescriptor, TextureFormat, TextureUsage, VertexStateDescriptor};
-use wgpu::util::{BufferInitDescriptor, DeviceExt};
+use wgpu::{Color, CommandEncoderDescriptor, CullMode, Features, FrontFace, include_spirv, IndexFormat, Instance, Limits, LoadOp, Operations, PipelineLayoutDescriptor, PowerPreference, PresentMode, PrimitiveTopology, ProgrammableStageDescriptor, PushConstantRange, RasterizationStateDescriptor, RenderPassColorAttachmentDescriptor, RenderPassDescriptor, RenderPipelineDescriptor, RequestAdapterOptions, ShaderStage, SwapChainDescriptor, TextureFormat, TextureUsage, VertexStateDescriptor};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::Window;
 
 use crate::shader_loader::ShaderLoader;
+
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
+struct Globals {
+    time: u32
+}
 
 pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &Instance) {
 
@@ -34,8 +40,19 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &In
     let (device, queue) = adapter
         .request_device(
             &wgpu::DeviceDescriptor {
-                features: wgpu::Features::empty(),
-                limits: wgpu::Limits::default(),
+                features: Features::PUSH_CONSTANTS,
+                limits: Limits {
+                    max_bind_groups: 1,
+                    max_dynamic_uniform_buffers_per_pipeline_layout: 0,
+                    max_dynamic_storage_buffers_per_pipeline_layout: 0,
+                    max_sampled_textures_per_shader_stage: 0,
+                    max_samplers_per_shader_stage: 0,
+                    max_storage_buffers_per_shader_stage: 0,
+                    max_storage_textures_per_shader_stage: 0,
+                    max_uniform_buffers_per_shader_stage: 1,
+                    max_uniform_buffer_binding_size: 0,
+                    max_push_constant_size: 4,
+                },
                 shader_validation: true,
             },
             None,
@@ -61,6 +78,7 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &In
     let mut swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
     // This is totally unused atm
+    /*
     // This describes the data we'll send to our gpu with our shaders
     let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
         label: Some("main bind group layout"),
@@ -91,12 +109,16 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &In
             resource: BindingResource::Buffer(uniform_buffer.slice(..)),
         }],
     });
+    */
 
     // This describes the data coming to a pipeline
     let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
         label: Some("main compute layout"),
-        bind_group_layouts: &[&bind_group_layout],
-        push_constant_ranges: &[],
+        bind_group_layouts: &[/*&bind_group_layout*/],
+        push_constant_ranges: &[PushConstantRange {
+            stages: ShaderStage::FRAGMENT,
+            range: 0..4,
+        }],
     });
 
     let mut shader_loader = ShaderLoader::new();
@@ -148,7 +170,7 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &In
     // The background color
     let background_color = Color::BLACK;
 
-    let mut time: u32 = 0;
+    let mut globals = Globals { time: 0 };
     let started = Instant::now();
     let mut last_draw_time = Instant::now();
     let target_framerate = Duration::from_secs_f32(1.0 / 60.0);
@@ -167,7 +189,7 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &In
                         Instant::now() + target_framerate - frame_time,
                     );
                 }
-                time = started.elapsed().as_millis() as u32;
+                globals.time = started.elapsed().as_millis() as u32;
             }
             Event::RedrawRequested(_) => {
                 // We use double buffering, so select the output texture
@@ -194,12 +216,16 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &In
                         depth_stencil_attachment: None,
                     });
                     _rpass.set_pipeline(&pipeline);
-                    _rpass.set_bind_group(0, &bind_group, &[]);
+
+                    // Associated data
+                    //_rpass.set_bind_group(0, &bind_group, &[]);
+                    // Push constants mapped to uniform block
+                    _rpass.set_push_constants(ShaderStage::FRAGMENT, 0, bytemuck::cast_slice(&[globals]));
+
                     // We have no vertices, they are generated by the vertex shader in place.
                     // But we act like we have 3, so the gpu calls the vertex shader 3 times.
                     _rpass.draw(0..3, 0..1);
                 }
-                queue.write_buffer(&uniform_buffer, 0, bytemuck::cast_slice(&[time]));
 
                 // Launch !
                 queue.submit(Some(encoder.finish()));

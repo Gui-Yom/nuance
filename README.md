@@ -1,17 +1,22 @@
 # Shadertoy
+
 (Will be) a desktop equivalent to https://shadertoy.com.
 
-Currently a good demo for wgpu-rs
+Currently a good demo for wgpu-rs.
 
 ### Shaders
-Shaders are written with GLSL (`#version 460`).
+
+Shaders are written with the Vulkan flavor of GLSL (`#version 450`).
+The [GL_KHR_vulkan_glsl](https://github.com/KhronosGroup/GLSL/blob/master/extensions/khr/GL_KHR_vulkan_glsl.txt)
+extension is implicitly enabled. You can also use a SpirV shader directly.
 
 ### TODO
- - Live reloading shaders
- - Bind uniforms
-   - time in milliseconds (iTime)
-   - screen resolution (vec3 Resolution (width, height, ratio))
-   - custom values ?
- - Bind resources (like textures)
- - CLI (clap)
- - GUI (imgui)
+
+- Live reloading shaders (file watcher)
+- Bind uniforms
+    - screen resolution (vec3 Resolution (width, height, ratio))
+    - any custom values ?
+- Bind resources (like textures)
+- Allow recording to gif or video
+- Live CLI (write commands directly in the console)
+- GUI (imgui) to display informations (and interact ?)

@@ -23,8 +23,8 @@ pretty_env_logger = { version = "0.4" }
 # logger api
 log = { version = "0.4" }
 # To compile shaders to spir-v
-shaderc = "0.7"
+shaderc = { version = "0.7" }
 # Error types
-thiserror = "1.0"
+thiserror = { version = "1.0" }
 # Converting types to bytes
-bytemuck = "1.4"
+bytemuck = { version = "1.4", features = ["derive"] }
