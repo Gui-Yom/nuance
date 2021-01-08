@@ -28,3 +28,5 @@ shaderc = { version = "0.7" }
 thiserror = { version = "1.0" }
 # Converting types to bytes
 bytemuck = { version = "1.4", features = ["derive"] }
+# Algebraic data types
+ultraviolet = { version = "0.7", features = ["bytemuck", "int"] }

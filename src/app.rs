@@ -1,3 +1,4 @@
+use core::mem;
 use std::time::{Duration, Instant};
 
 use bytemuck::{Pod, Zeroable};
@@ -12,7 +13,10 @@ use crate::shader_loader::ShaderLoader;
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 struct Globals {
-    time: u32
+    time: u32,
+    width: u32,
+    height: u32,
+    ratio: f32,
 }
 
 pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &Instance) {
@@ -51,7 +55,7 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &In
                     max_storage_textures_per_shader_stage: 0,
                     max_uniform_buffers_per_shader_stage: 1,
                     max_uniform_buffer_binding_size: 0,
-                    max_push_constant_size: 4,
+                    max_push_constant_size: mem::size_of::<Globals>() as u32,
                 },
                 shader_validation: true,
             },
@@ -117,7 +121,7 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &In
         bind_group_layouts: &[/*&bind_group_layout*/],
         push_constant_ranges: &[PushConstantRange {
             stages: ShaderStage::FRAGMENT,
-            range: 0..4,
+            range: 0..mem::size_of::<Globals>() as u32,
         }],
     });
 
@@ -170,7 +174,12 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>, instance: &In
     // The background color
     let background_color = Color::BLACK;
 
-    let mut globals = Globals { time: 0 };
+    let mut globals = Globals {
+        time: 0,
+        width: size.width,
+        height: size.height,
+        ratio: size.width as f32 / size.height as f32,
+    };
     let started = Instant::now();
     let mut last_draw_time = Instant::now();
     let target_framerate = Duration::from_secs_f32(1.0 / 60.0);

@@ -13,9 +13,8 @@ extension is implicitly enabled. You can also use a SpirV shader directly.
 ### TODO
 
 - Live reloading shaders (file watcher)
-- Bind uniforms
-    - screen resolution (vec3 Resolution (width, height, ratio))
-    - any custom values ?
+- Bind uniforms (through push constants)
+    - any custom value ?
 - Bind resources (like textures)
 - Allow recording to gif or video
 - Live CLI (write commands directly in the console)
