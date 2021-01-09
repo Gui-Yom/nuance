@@ -19,5 +19,5 @@ fn main() {
     let window = builder.build(&event_loop).expect("Can't create window !");
 
     // Going async !
-    futures::executor::block_on(app::run(window, event_loop));
+    futures_executor::block_on(app::run(window, event_loop));
 }

@@ -17,7 +17,7 @@ wgpu = { version = "0.6" }
 # Windowing
 winit = { version = "0.24" }
 # Async runtime
-futures = { version = "0.3" }
+futures-executor = { version = "0.3" }
 # logger impl
 pretty_env_logger = { version = "0.4" }
 # logger api
@@ -30,3 +30,5 @@ thiserror = { version = "1.0" }
 bytemuck = { version = "1.4", features = ["derive"] }
 # Algebraic data types
 ultraviolet = { version = "0.7", features = ["bytemuck", "int"] }
+# File watcher
+hotwatch = { version = "0.4" }
