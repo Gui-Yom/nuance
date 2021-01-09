@@ -36,6 +36,8 @@ struct Globals {
     time: f32,
     /// Time since the last frame in sec
     time_delta: f32,
+    /// Number of frame
+    frame: u32,
 }
 
 pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
@@ -90,7 +92,10 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
 
     let (tx, watcher_rx) = channel();
 
-    let mut watcher = Hotwatch::new().expect("Failed to initialize hotwatch");
+    // This value was found by fiddling a bit, the shorter, the more dangerous it is,
+    // because we could receive some events twice.
+    let mut watcher = Hotwatch::new_with_custom_delay(Duration::from_millis(400))
+        .expect("Failed to initialize hotwatch");
     watcher
         .watch("shaders/purple.frag", move |e| tx.send(e).unwrap())
         .unwrap();
@@ -104,6 +109,7 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
         ratio: window_size.width as f32 / window_size.height as f32,
         time: 0.0,
         time_delta: 0.0,
+        frame: 0,
     };
     let started = Instant::now();
     let mut last_draw_time = Instant::now();
@@ -112,6 +118,32 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
     event_loop.run(move |event, _, control_flow| {
         // Run this loop indefinitely
         *control_flow = ControlFlow::Poll;
+
+        if let Some(hotwatch::Event::Write(_path)) = watcher_rx.try_recv().ok() {
+            info!("Reloading !");
+            let reload_start = Instant::now();
+            pipeline = create_pipeline(
+                &device,
+                &pipeline_layout,
+                &vertex_shader,
+                &device.create_shader_module(
+                    shader_loader
+                        .load_shader(shader_file)
+                        .expect("Can't load shader"),
+                ),
+                format,
+            );
+            // Reset the running globals
+            globals.frame = 0;
+            globals.time = 0.0;
+            globals.time_delta = 0.0;
+
+            info!(
+                "Reloaded ! (took {} ms)",
+                reload_start.elapsed().as_millis()
+            );
+        }
+
         match event {
             Event::MainEventsCleared => {
                 let frame_time = last_draw_time.elapsed();
@@ -165,6 +197,7 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
                     // But we act like we have 3, so the gpu calls the vertex shader 3 times.
                     _rpass.draw(0..3, 0..1);
                 }
+                globals.frame += 1;
 
                 // Launch !
                 queue.submit(Some(encoder.finish()));
@@ -175,21 +208,6 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
                 ..
             } => *control_flow = ControlFlow::Exit,
             _ => {}
-        }
-
-        let event = watcher_rx.try_recv().ok();
-        if let Some(hotwatch::Event::Write(_path)) = event {
-            pipeline = create_pipeline(
-                &device,
-                &pipeline_layout,
-                &vertex_shader,
-                &device.create_shader_module(
-                    shader_loader
-                        .load_shader(shader_file)
-                        .expect("Can't load shader"),
-                ),
-                format,
-            );
         }
     });
 }

@@ -12,6 +12,8 @@ layout(push_constant) uniform Globals {
     float uTime;
 // Time since last frame in sec
     float uTimeDelta;
+// The number of frame we're at
+    uint uFrame;
 };
 
 void main() {
