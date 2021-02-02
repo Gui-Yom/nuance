@@ -13,22 +13,24 @@ codegen-units = 1
 
 [dependencies]
 # GPU API
-wgpu = { version = "0.6" }
+wgpu = { version = "0.7" }
 # Windowing
 winit = { version = "0.24" }
 # Async runtime
 futures-executor = { version = "0.3" }
-# logger impl
-pretty_env_logger = { version = "0.4" }
-# logger api
-log = { version = "0.4" }
 # To compile shaders to spir-v
 shaderc = { version = "0.7" }
 # Error types
-thiserror = { version = "1.0" }
+anyhow = { version = "1" }
 # Converting types to bytes
-bytemuck = { version = "1.4", features = ["derive"] }
+bytemuck = { version = "1", features = ["derive"] }
 # Algebraic data types
 ultraviolet = { version = "0.7", features = ["bytemuck", "int"] }
 # File watcher
 hotwatch = { version = "0.4" }
+# logger api
+log = { version = "0.4", features = ["std"] }
+# Terminal UI
+crossterm = { version = "0.18" }
+tui = { version = "0.14", default-features = false, features = ["crossterm"] }
+tui-logger = { version = "0.4", default-features = false, features = ["tui-crossterm"] }

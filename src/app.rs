@@ -1,25 +1,26 @@
 use core::mem;
-use std::sync::mpsc::{channel, Receiver};
 use std::time::{Duration, Instant};
 
+use anyhow::Result;
 use bytemuck::{Pod, Zeroable};
-use hotwatch::notify::DebouncedEvent;
 use hotwatch::Hotwatch;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use wgpu::{
-    include_spirv, Adapter, BackendBit, BindGroupLayout, BindGroupLayoutDescriptor, Color,
-    CommandEncoderDescriptor, CullMode, Device, Features, FrontFace, IndexFormat, Instance, Limits,
-    LoadOp, Operations, PipelineLayout, PipelineLayoutDescriptor, PowerPreference, PresentMode,
-    PrimitiveTopology, ProgrammableStageDescriptor, PushConstantRange, Queue,
-    RasterizationStateDescriptor, RenderPassColorAttachmentDescriptor, RenderPassDescriptor,
-    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModule, ShaderStage,
-    Surface, SwapChain, SwapChainDescriptor, TextureFormat, TextureUsage, VertexStateDescriptor,
+    include_spirv, Adapter, BackendBit, BlendState, Color, ColorTargetState, ColorWrite,
+    CommandEncoderDescriptor, CullMode, Device, Features, FragmentState, FrontFace, Instance,
+    Limits, LoadOp, MultisampleState, Operations, PipelineLayout, PipelineLayoutDescriptor,
+    PolygonMode, PowerPreference, PresentMode, PrimitiveState, PrimitiveTopology,
+    PushConstantRange, Queue, RenderPassColorAttachmentDescriptor, RenderPassDescriptor,
+    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderFlags, ShaderModule,
+    ShaderModuleDescriptor, ShaderStage, Surface, SwapChain, SwapChainDescriptor, TextureFormat,
+    TextureUsage, VertexState,
 };
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::Window;
 
 use crate::shader_loader::ShaderLoader;
+use std::sync::mpsc::channel;
 
 /// The globals we pass to the fragment shader
 /// aligned to 32bit words
@@ -40,7 +41,18 @@ struct Globals {
     frame: u32,
 }
 
-pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
+#[derive(Default, Debug)]
+struct Renderer {
+    // TODO
+}
+
+#[derive(Debug)]
+pub enum Command {
+    Load(String),
+    Close,
+}
+
+pub(crate) async fn run(window: Window, event_loop: EventLoop<Command>) -> Result<()> {
     let (_instance, _adapter, device, queue, surface) = init_wgpu(&window).await;
 
     let window_size = window.inner_size();
@@ -48,7 +60,7 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
     // The output format
     let format = TextureFormat::Rgba8UnormSrgb;
 
-    let mut swapchain = create_swapchain(&device, &surface, format, window_size.into());
+    let swapchain = create_swapchain(&device, &surface, format, window_size.into());
 
     // This describes the data we'll send to our gpu with our shaders
     // This is where we'll declare textures and other stuff.
@@ -59,18 +71,18 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
         entries: &[],
     });*/
 
-    let shader_file = "shaders/purple.frag";
+    let shader_file = "shaders/time.frag";
 
     let mut shader_loader = ShaderLoader::new();
     // The vertex shader (place triangles for rasterization)
     // It is included at compilation because it won't ever change
-    let vertex_shader = device.create_shader_module(include_spirv!("shaders/screen.vert.spv"));
+    let vertex_shader = device.create_shader_module(&include_spirv!("shaders/screen.vert.spv"));
     // The fragment shader (colorize our triangles)
-    let fragment_shader = &device.create_shader_module(
-        shader_loader
-            .load_shader(shader_file)
-            .expect("Can't load shader"),
-    );
+    let fragment_shader = &device.create_shader_module(&ShaderModuleDescriptor {
+        label: Some("main fragment shader"),
+        source: shader_loader.load_shader(shader_file)?,
+        flags: ShaderFlags::default(),
+    });
 
     // This describes the data coming to a pipeline
     let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
@@ -97,7 +109,7 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
     let mut watcher = Hotwatch::new_with_custom_delay(Duration::from_millis(400))
         .expect("Failed to initialize hotwatch");
     watcher
-        .watch("shaders/purple.frag", move |e| tx.send(e).unwrap())
+        .watch(shader_file, move |e| tx.send(e).unwrap())
         .unwrap();
 
     // The background color
@@ -126,11 +138,11 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
                 &device,
                 &pipeline_layout,
                 &vertex_shader,
-                &device.create_shader_module(
-                    shader_loader
-                        .load_shader(shader_file)
-                        .expect("Can't load shader"),
-                ),
+                &device.create_shader_module(&ShaderModuleDescriptor {
+                    label: Some("main fragment shader"),
+                    source: shader_loader.load_shader(shader_file).unwrap(),
+                    flags: ShaderFlags::default(),
+                }),
                 format,
             );
             // Reset the running globals
@@ -145,6 +157,12 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
         }
 
         match event {
+            Event::UserEvent(cmd) => match cmd {
+                Command::Load(_) => {}
+                Command::Close => {
+                    *control_flow = ControlFlow::Exit;
+                }
+            },
             Event::MainEventsCleared => {
                 let frame_time = last_draw_time.elapsed();
                 if frame_time >= target_framerate {
@@ -172,6 +190,7 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
                     // Our render pass :
                     // Clears the buffer with the background color and then run the pipeline
                     let mut _rpass = encoder.begin_render_pass(&RenderPassDescriptor {
+                        label: Some("main render pass"),
                         color_attachments: &[RenderPassColorAttachmentDescriptor {
                             attachment: &frame.view,
                             resolve_target: None,
@@ -206,7 +225,9 @@ pub(crate) async fn run(window: Window, event_loop: EventLoop<()>) {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
-            } => *control_flow = ControlFlow::Exit,
+            } => {
+                warn!("Close the app with Esc or \"exit\" in the terminal.");
+            }
             _ => {}
         }
     });
@@ -249,6 +270,7 @@ async fn init_wgpu(window: &Window) -> (Instance, Adapter, Device, Queue, Surfac
     let (device, queue) = adapter
         .request_device(
             &wgpu::DeviceDescriptor {
+                label: Some("I want a device"),
                 features: Features::PUSH_CONSTANTS,
                 limits: Limits {
                     max_bind_groups: 1,
@@ -262,7 +284,6 @@ async fn init_wgpu(window: &Window) -> (Instance, Adapter, Device, Queue, Surfac
                     max_uniform_buffer_binding_size: 0,
                     max_push_constant_size: mem::size_of::<Globals>() as u32,
                 },
-                shader_validation: true,
             },
             None,
         )
@@ -281,7 +302,7 @@ fn create_swapchain(
     // Here we create the swap chain, which is basically what does the job of
     // rendering our output in sync
     let sc_desc = SwapChainDescriptor {
-        usage: TextureUsage::OUTPUT_ATTACHMENT,
+        usage: TextureUsage::RENDER_ATTACHMENT,
         format,
         width,
         height,
@@ -300,45 +321,35 @@ fn create_pipeline(
 ) -> RenderPipeline {
     // Describes the operations to execute on a render pass
     device.create_render_pipeline(&RenderPipelineDescriptor {
-        label: Some("main render"),
-        layout: Some(&pipeline_layout),
-        // First, place our points and triangles
-        vertex_stage: ProgrammableStageDescriptor {
+        label: Some("main pipeline"),
+        layout: Some(pipeline_layout),
+        vertex: VertexState {
             module: vs,
             entry_point: "main",
+            buffers: &[],
         },
-        // Draw a color on them
-        fragment_stage: Some(ProgrammableStageDescriptor {
+        primitive: PrimitiveState {
+            topology: PrimitiveTopology::TriangleList,
+            strip_index_format: None,
+            front_face: FrontFace::Ccw,
+            cull_mode: CullMode::None,
+            polygon_mode: PolygonMode::Fill,
+        },
+        depth_stencil: None,
+        multisample: MultisampleState {
+            count: 1,
+            mask: !0,
+            alpha_to_coverage_enabled: false,
+        },
+        fragment: Some(FragmentState {
             module: ps,
             entry_point: "main",
+            targets: &[ColorTargetState {
+                format,
+                alpha_blend: BlendState::default(),
+                color_blend: BlendState::default(),
+                write_mask: ColorWrite::ALL,
+            }],
         }),
-        // Describes the rasterization stage
-        rasterization_state: Some(RasterizationStateDescriptor {
-            // The orientation of our triangles
-            front_face: FrontFace::Ccw,
-            // The culling mode (wether the triangles have a front side or not)
-            // as we only paint the front side usually
-            // Here we don't care
-            cull_mode: CullMode::None,
-            clamp_depth: false,
-            depth_bias: 0,
-            depth_bias_slope_scale: 0.0,
-            depth_bias_clamp: 0.0,
-        }),
-        // How the gpu should interpret our vertex buffer
-        // In our case, it's just a single triangle
-        primitive_topology: PrimitiveTopology::TriangleList,
-        color_states: &[format.into()],
-        depth_stencil_state: None,
-        // Describe our vertex buffers
-        // In our case, we don't have anu since they are generated by the vertex shader
-        vertex_state: VertexStateDescriptor {
-            index_format: IndexFormat::Uint16,
-            vertex_buffers: &[],
-        },
-        // 1 sample per pixel
-        sample_count: 1,
-        sample_mask: !0,
-        alpha_to_coverage_enabled: false,
     })
 }

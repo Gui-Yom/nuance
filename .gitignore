@@ -2,3 +2,4 @@
 *.spv
 .idea/
 !screen.vert.spv
+shadertoy.log
