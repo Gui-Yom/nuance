@@ -15,5 +15,4 @@ extension is implicitly enabled. You can also use a SpirV shader directly.
 - Bind any custom value to uniforms
 - Bind resources (like textures)
 - Allow recording to gif or video
-- Live CLI (write commands directly in the console)
 - GUI (imgui) to display informations (and interact ?)

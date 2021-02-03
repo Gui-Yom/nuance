@@ -20,11 +20,12 @@ use winit::dpi::LogicalSize;
 use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
 
-use crate::app::Command;
+use crate::app::{App, Command};
 use crate::input::{InputBox, InputBoxState};
 
 mod app;
 mod input;
+mod renderer;
 mod shader_loader;
 
 fn main() -> Result<()> {
@@ -44,7 +45,7 @@ fn main() -> Result<()> {
 
     init_logger(LevelFilter::Debug)?;
     set_default_level(LevelFilter::Debug);
-    set_log_file("shadertoy.log");
+    set_log_file("shadertoy.log")?;
 
     let event_loop = EventLoop::with_user_event();
     let ev_sender = event_loop.create_proxy();
@@ -126,7 +127,8 @@ fn main() -> Result<()> {
     let window = builder.build(&event_loop)?;
 
     // Going async !
-    futures_executor::block_on(app::run(window, event_loop))?;
+    let app = futures_executor::block_on(App::init(window))?;
+    futures_executor::block_on(app.run(event_loop))?;
 
     cli_thread.join().expect("Can't join thread ?");
 
