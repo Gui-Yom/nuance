@@ -95,7 +95,22 @@ impl App {
 
             match event {
                 Event::UserEvent(cmd) => match cmd {
-                    Command::Load(_) => {}
+                    Command::Load(path) => {
+                        info!("Reloading !");
+                        let reload_start = Instant::now();
+                        self.renderer.new_pipeline_from_shader_source(
+                            self.shader_loader.load_shader(path).unwrap(),
+                        );
+                        // Reset the running globals
+                        self.globals.frame = 0;
+                        self.globals.time = 0.0;
+                        self.globals.time_delta = 0.0;
+
+                        info!(
+                            "Reloaded ! (took {} ms)",
+                            reload_start.elapsed().as_millis()
+                        );
+                    }
                     Command::Close => {
                         *control_flow = ControlFlow::Exit;
                     }
@@ -142,7 +157,7 @@ impl App {
                     event: WindowEvent::CloseRequested,
                     ..
                 } => {
-                    warn!("Close the app with Esc or \"exit\" in the terminal.");
+                    *control_flow = ControlFlow::Exit;
                 }
                 _ => {}
             }

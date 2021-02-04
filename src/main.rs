@@ -1,5 +1,6 @@
 use std::io;
 use std::io::Write;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::spawn;
 use std::time::Duration;
 
@@ -28,6 +29,8 @@ mod input;
 mod renderer;
 mod shader_loader;
 
+static should_exit: AtomicBool = AtomicBool::new(false);
+
 fn main() -> Result<()> {
     // Setup the tui
     //crossterm::terminal::enable_raw_mode();
@@ -54,6 +57,9 @@ fn main() -> Result<()> {
         let mut input_box_state = InputBoxState::default();
 
         loop {
+            if should_exit.load(Ordering::Relaxed) {
+                return Ok(());
+            }
             if event::poll(Duration::from_millis(500))? {
                 match event::read()? {
                     Event::Key(KeyEvent { code, modifiers }) => match code {
@@ -129,6 +135,8 @@ fn main() -> Result<()> {
     // Going async !
     let app = futures_executor::block_on(App::init(window))?;
     futures_executor::block_on(app.run(event_loop))?;
+
+    should_exit.store(true, Ordering::Relaxed);
 
     cli_thread.join().expect("Can't join thread ?");
 
