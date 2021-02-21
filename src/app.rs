@@ -1,11 +1,12 @@
 use core::mem;
+use std::sync::mpsc::{Receiver, TryRecvError};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use bytemuck::{Pod, Zeroable};
-use hotwatch::notify::DebouncedEvent;
-use hotwatch::Hotwatch;
 use log::{debug, error, info, warn};
+use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::Window;
@@ -35,7 +36,8 @@ struct Globals {
 #[derive(Debug)]
 pub enum Command {
     Load(String),
-    WatchEvent(DebouncedEvent),
+    Watch(String),
+    Unwatch,
     Close,
 }
 
@@ -43,7 +45,8 @@ pub struct App {
     window: Window,
 
     shader_loader: ShaderLoader,
-    watcher: Option<Hotwatch>,
+    watcher: RecommendedWatcher,
+    watcher_rx: Receiver<DebouncedEvent>,
 
     renderer: Renderer,
 
@@ -56,10 +59,12 @@ impl App {
     pub async fn init(window: Window) -> Result<Self> {
         let window_size = window.inner_size();
         let renderer = Renderer::new(&window, mem::size_of::<Globals>() as u32).await?;
+        let (tx, rx) = std::sync::mpsc::channel();
         Ok(Self {
             window,
             shader_loader: ShaderLoader::new(),
-            watcher: None,
+            watcher: watcher(tx, Duration::from_millis(200))?,
+            watcher_rx: rx,
             renderer,
             started: Instant::now(),
             target_framerate: Duration::from_secs_f32(1.0 / 30.0),
@@ -77,21 +82,21 @@ impl App {
     /// Runs the window, will block the thread until completion
     pub async fn run(mut self, event_loop: EventLoop<Command>) -> Result<()> {
         let mut last_draw_time = Instant::now();
-
-        /*
-        let event_loop_proxy = self.event_loop.create_proxy();
-        // This value was found by fiddling a bit, the shorter, the more dangerous it is,
-        // because we could receive some events twice.
-        self.watcher = Some(Hotwatch::new_with_custom_delay(Duration::from_millis(400))?);
-        self.watcher.watch(shader_file, move |e| {
-            event_loop_proxy.send_event(Command::WatchEvent(e)).unwrap()
-        })?;
-
-         */
+        //let ev_sender = event_loop.create_proxy();
+        let mut curr_shader_file = None;
+        // To send user events to the event loop
+        let proxy = event_loop.create_proxy();
 
         event_loop.run(move |event, _, control_flow| {
             // Run this loop indefinitely
             *control_flow = ControlFlow::Poll;
+
+            match self.watcher_rx.try_recv() {
+                Ok(DebouncedEvent::Write(path)) => {
+                    proxy.send_event(Command::Load(path.to_str().unwrap().to_string()));
+                }
+                _ => {}
+            }
 
             match event {
                 Event::UserEvent(cmd) => match cmd {
@@ -111,24 +116,19 @@ impl App {
                             reload_start.elapsed().as_millis()
                         );
                     }
+                    Command::Watch(path) => {
+                        curr_shader_file = Some(path);
+                        self.watcher.watch(
+                            curr_shader_file.as_ref().unwrap(),
+                            RecursiveMode::NonRecursive,
+                        );
+                    }
+                    Command::Unwatch => {
+                        self.watcher.unwatch(curr_shader_file.as_ref().unwrap());
+                        curr_shader_file = None;
+                    }
                     Command::Close => {
                         *control_flow = ControlFlow::Exit;
-                    }
-                    Command::WatchEvent(DebouncedEvent::Write(path)) => {
-                        info!("Reloading !");
-                        let reload_start = Instant::now();
-                        self.renderer.new_pipeline_from_shader_source(
-                            self.shader_loader.load_shader(path).unwrap(),
-                        );
-                        // Reset the running globals
-                        self.globals.frame = 0;
-                        self.globals.time = 0.0;
-                        self.globals.time_delta = 0.0;
-
-                        info!(
-                            "Reloaded ! (took {} ms)",
-                            reload_start.elapsed().as_millis()
-                        );
                     }
                     _ => {}
                 },

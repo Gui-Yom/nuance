@@ -11,7 +11,7 @@ use crossterm::terminal::{
     LeaveAlternateScreen, SetTitle,
 };
 use crossterm::{event, execute};
-use log::{debug, info, LevelFilter};
+use log::{debug, error, info, LevelFilter};
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout};
 use tui::widgets::{Block, BorderType, Borders};
@@ -46,8 +46,8 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    init_logger(LevelFilter::Debug)?;
-    set_default_level(LevelFilter::Debug);
+    init_logger(LevelFilter::Info)?;
+    set_default_level(LevelFilter::Info);
     set_log_file("shadertoy.log")?;
 
     let event_loop = EventLoop::with_user_event();
@@ -90,6 +90,17 @@ fn main() -> Result<()> {
                                     debug!("load {}", file);
                                     ev_sender.send_event(Command::Load(file.to_string()))?;
                                 }
+                                Some("watch") => {
+                                    let file =
+                                        command.next().context("You need to specify a shader")?;
+                                    debug!("watch {}", file);
+                                    ev_sender.send_event(Command::Load(file.to_string()))?;
+                                    ev_sender.send_event(Command::Watch(file.to_string()))?;
+                                }
+                                Some("unwatch") => {
+                                    debug!("unwatch");
+                                    ev_sender.send_event(Command::Unwatch)?;
+                                }
                                 Some("exit") => {
                                     break;
                                 }
@@ -106,7 +117,7 @@ fn main() -> Result<()> {
             terminal.draw(|frame| {
                 let chunks = Layout::default()
                     .direction(Direction::Vertical)
-                    .constraints([Constraint::Percentage(90), Constraint::Max(2)])
+                    .constraints([Constraint::Percentage(90), Constraint::Max(1)])
                     .split(frame.size());
 
                 let widget = TuiLoggerWidget::default().block(

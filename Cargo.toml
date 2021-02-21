@@ -27,10 +27,10 @@ bytemuck = { version = "1", features = ["derive"] }
 # Algebraic data types
 ultraviolet = { version = "0.7", features = ["bytemuck", "int"] }
 # File watcher
-hotwatch = { version = "0.4" }
+notify = { version = "4.0" }
 # logger api
 log = { version = "0.4", features = ["std"] }
 # Terminal UI
 crossterm = { version = "0.18" }
 tui = { version = "0.14", default-features = false, features = ["crossterm"] }
-tui-logger = { version = "0.4", default-features = false, features = ["tui-crossterm"] }
+tui-logger = { version = "0.6" }
