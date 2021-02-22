@@ -91,6 +91,10 @@ fn main() -> Result<()> {
                                     debug!("load {}", file);
                                     ev_sender.send_event(Command::Load(file.to_string()))?;
                                 }
+                                Some("reload") => {
+                                    debug!("reload");
+                                    ev_sender.send_event(Command::Reload)?;
+                                }
                                 Some("watch") => {
                                     let file =
                                         command.next().context("You need to specify a shader")?;
@@ -101,6 +105,18 @@ fn main() -> Result<()> {
                                 Some("unwatch") => {
                                     debug!("unwatch");
                                     ev_sender.send_event(Command::Unwatch)?;
+                                }
+                                Some("framerate") => {
+                                    let fps: i16 = command
+                                        .next()
+                                        .context("You need to specify a shader")?
+                                        .parse()?;
+                                    debug!("framerate {}", fps);
+                                    ev_sender.send_event(Command::TargetFps(fps))?;
+                                }
+                                Some("restart") => {
+                                    debug!("restart");
+                                    ev_sender.send_event(Command::Restart)?;
                                 }
                                 Some("exit") => {
                                     break;
@@ -132,7 +148,7 @@ fn main() -> Result<()> {
                 frame.render_stateful_widget(input_box, chunks[1], &mut input_box_state);
             })?;
         }
-        ev_sender.send_event(Command::Close)?;
+        ev_sender.send_event(Command::Exit)?;
         Ok(())
     });
 

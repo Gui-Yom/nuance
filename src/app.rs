@@ -16,9 +16,12 @@ use crate::types::{Globals, UVec2};
 #[derive(Debug)]
 pub enum Command {
     Load(String),
+    Reload,
     Watch(String),
     Unwatch,
-    Close,
+    TargetFps(i16),
+    Restart,
+    Exit,
 }
 
 pub struct App {
@@ -85,16 +88,23 @@ impl App {
                         info!("Reloading !");
                         let reload_start = Instant::now();
                         self.renderer.new_pipeline_from_shader_source(
-                            self.shader_loader.load_shader(path).unwrap(),
+                            self.shader_loader.load_shader(&path).unwrap(),
                         );
                         // Reset the running globals
                         self.globals.frame = 0;
                         self.globals.time = 0.0;
+                        self.started = Instant::now();
+                        curr_shader_file = Some(path);
 
                         info!(
                             "Reloaded ! (took {} ms)",
                             reload_start.elapsed().as_millis()
                         );
+                    }
+                    Command::Reload => {
+                        proxy.send_event(Command::Load(
+                            curr_shader_file.as_ref().unwrap().to_string(),
+                        ));
                     }
                     Command::Watch(path) => {
                         curr_shader_file = Some(path);
@@ -111,7 +121,17 @@ impl App {
                             .unwrap();
                         curr_shader_file = None;
                     }
-                    Command::Close => {
+                    Command::TargetFps(new_fps) => {
+                        self.target_framerate = Duration::from_secs_f32(1.0 / new_fps as f32)
+                    }
+                    Command::Restart => {
+                        info!("Restarting !");
+                        // Reset the running globals
+                        self.globals.frame = 0;
+                        self.globals.time = 0.0;
+                        self.started = Instant::now();
+                    }
+                    Command::Exit => {
                         *control_flow = ControlFlow::Exit;
                     }
                 },
@@ -125,12 +145,10 @@ impl App {
                     ..
                 } => {
                     let size = self.window.inner_size();
-                    //info!("{:?}", position);
                     self.globals.mouse = UVec2::new(
                         position.x.clamp(0.0, size.width as f64) as u32,
                         position.y.clamp(0.0, size.height as f64) as u32,
                     );
-                    //info!("{:?}", self.globals.as_std430());
                 }
                 Event::MainEventsCleared => {
                     let frame_time = last_draw_time.elapsed();
