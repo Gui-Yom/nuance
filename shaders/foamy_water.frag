@@ -10,10 +10,10 @@
 
 layout(location = 0) out vec4 outColor;
 layout(push_constant) uniform Globals {
-// Width in pixels
-    uint uWidth;
-// Height in pixels
-    uint uHeight;
+// Window resolution
+    vec2 uResolution;
+// Mouse position
+    vec2 uMouse;
 // Aspect ratio
     float fRatio;
 // Time in sec
@@ -46,7 +46,7 @@ float waterHighlight(vec2 p, float time, float foaminess) {
 
 void main() {
     float time = uTime * 0.8 + 23.0;
-    vec2 uv = gl_FragCoord.xy / vec2(uWidth, uHeight);
+    vec2 uv = gl_FragCoord.xy / uResolution;
     vec2 uv_square = vec2(uv.x * fRatio, uv.y);
     float dist_center = pow(2.0 * length(uv - 0.5), 2.0);
 

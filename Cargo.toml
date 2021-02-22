@@ -24,8 +24,6 @@ shaderc = { version = "0.7" }
 anyhow = { version = "1" }
 # Converting types to bytes
 bytemuck = { version = "1", features = ["derive"] }
-# Algebraic data types
-ultraviolet = { version = "0.7", features = ["bytemuck", "int"] }
 # File watcher
 notify = { version = "4.0" }
 # logger api

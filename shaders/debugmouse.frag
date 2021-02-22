@@ -15,13 +15,10 @@ layout(push_constant) uniform Globals {
 };
 
 void main() {
-    uvec2 center = uResolution / 2;
-    float r = length(gl_FragCoord.xy - center);
-    if (r <= 20) {
+    float r = length(gl_FragCoord.xy - uMouse);
+    if (r <= 60) {
         outColor = vec4(1.0, 0.0, 0.0, 1.0);
-    } else if (r <= uMouse.x) {
-        outColor = vec4(0.0, (sin(uTime * 2.0) + 1.0) / 2.0, 0.0, 1.0);
     } else {
-        outColor = vec4(0.0, 0.0, 1.0, 1.0);
+        outColor = vec4(0.0, 0.0, 0.0, 1.0);
     }
 }

@@ -1305,15 +1305,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "safe_arch"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1ff3d6d9696af502cc3110dacce942840fb06ff4514cad92236ecc455f2ce05"
-dependencies = [
- "bytemuck",
-]
-
-[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1373,7 +1364,6 @@ dependencies = [
  "shaderc",
  "tui",
  "tui-logger",
- "ultraviolet",
  "wgpu",
  "winit",
 ]
@@ -1609,16 +1599,6 @@ dependencies = [
  "parking_lot",
  "slog",
  "tui",
-]
-
-[[package]]
-name = "ultraviolet"
-version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6650a58414f856056ccc651abd3b9d80c384206250c3a621224497503a0f9f2"
-dependencies = [
- "bytemuck",
- "wide",
 ]
 
 [[package]]
@@ -1867,16 +1847,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72fa9ba80626278fd87351555c363378d08122d7601e58319be3d6fa85a87747"
 dependencies = [
  "bitflags",
-]
-
-[[package]]
-name = "wide"
-version = "0.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80b27c76ecc22bd81fe681d9c9eac81e002d7b7048105ee4608f57c4e92e9211"
-dependencies = [
- "bytemuck",
- "safe_arch",
 ]
 
 [[package]]

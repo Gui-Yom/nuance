@@ -28,6 +28,7 @@ mod app;
 mod input;
 mod renderer;
 mod shader_loader;
+mod types;
 
 static should_exit: AtomicBool = AtomicBool::new(false);
 

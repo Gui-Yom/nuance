@@ -1,10 +1,8 @@
-use core::mem;
-use std::sync::mpsc::{Receiver, TryRecvError};
-use std::sync::Arc;
+use std::mem;
+use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use bytemuck::{Pod, Zeroable};
 use log::{debug, error, info, warn};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use winit::event::{Event, WindowEvent};
@@ -13,25 +11,7 @@ use winit::window::Window;
 
 use crate::renderer::Renderer;
 use crate::shader_loader::ShaderLoader;
-
-/// The globals we pass to the fragment shader
-/// aligned to 32bit words
-#[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable)]
-struct Globals {
-    /// Draw area width
-    width: u32,
-    /// Draw area height
-    height: u32,
-    /// Draw area width/height ratio
-    ratio: f32,
-    /// Current running time in sec
-    time: f32,
-    /// Time since the last frame in sec
-    time_delta: f32,
-    /// Number of frame
-    frame: u32,
-}
+use crate::types::{Globals, UVec2};
 
 #[derive(Debug)]
 pub enum Command {
@@ -69,11 +49,10 @@ impl App {
             started: Instant::now(),
             target_framerate: Duration::from_secs_f32(1.0 / 30.0),
             globals: Globals {
-                width: window_size.width,
-                height: window_size.height,
+                resolution: UVec2::new(window_size.width, window_size.height),
+                mouse: UVec2::zero(),
                 ratio: window_size.width as f32 / window_size.height as f32,
                 time: 0.0,
-                time_delta: 0.0,
                 frame: 0,
             },
         })
@@ -93,7 +72,9 @@ impl App {
 
             match self.watcher_rx.try_recv() {
                 Ok(DebouncedEvent::Write(path)) => {
-                    proxy.send_event(Command::Load(path.to_str().unwrap().to_string()));
+                    proxy
+                        .send_event(Command::Load(path.to_str().unwrap().to_string()))
+                        .unwrap();
                 }
                 _ => {}
             }
@@ -109,7 +90,6 @@ impl App {
                         // Reset the running globals
                         self.globals.frame = 0;
                         self.globals.time = 0.0;
-                        self.globals.time_delta = 0.0;
 
                         info!(
                             "Reloaded ! (took {} ms)",
@@ -118,20 +98,40 @@ impl App {
                     }
                     Command::Watch(path) => {
                         curr_shader_file = Some(path);
-                        self.watcher.watch(
-                            curr_shader_file.as_ref().unwrap(),
-                            RecursiveMode::NonRecursive,
-                        );
+                        self.watcher
+                            .watch(
+                                curr_shader_file.as_ref().unwrap(),
+                                RecursiveMode::NonRecursive,
+                            )
+                            .unwrap();
                     }
                     Command::Unwatch => {
-                        self.watcher.unwatch(curr_shader_file.as_ref().unwrap());
+                        self.watcher
+                            .unwatch(curr_shader_file.as_ref().unwrap())
+                            .unwrap();
                         curr_shader_file = None;
                     }
                     Command::Close => {
                         *control_flow = ControlFlow::Exit;
                     }
-                    _ => {}
                 },
+                Event::WindowEvent {
+                    event:
+                        WindowEvent::CursorMoved {
+                            device_id: _,
+                            position,
+                            ..
+                        },
+                    ..
+                } => {
+                    let size = self.window.inner_size();
+                    //info!("{:?}", position);
+                    self.globals.mouse = UVec2::new(
+                        position.x.clamp(0.0, size.width as f64) as u32,
+                        position.y.clamp(0.0, size.height as f64) as u32,
+                    );
+                    //info!("{:?}", self.globals.as_std430());
+                }
                 Event::MainEventsCleared => {
                     let frame_time = last_draw_time.elapsed();
                     if frame_time >= self.target_framerate {
@@ -144,11 +144,10 @@ impl App {
                         );
                     }
                     self.globals.time = self.started.elapsed().as_secs_f32();
-                    self.globals.time_delta = frame_time.as_secs_f32();
                 }
                 Event::RedrawRequested(_) => {
                     self.renderer
-                        .render(bytemuck::cast_slice(&[self.globals]))
+                        .render(bytemuck::bytes_of(&self.globals))
                         .unwrap();
                     self.globals.frame += 1;
                 }
