@@ -17,6 +17,7 @@ use tui::layout::{Constraint, Direction, Layout};
 use tui::widgets::{Block, BorderType, Borders};
 use tui::Terminal;
 use tui_logger::{init_logger, set_default_level, set_log_file, TuiLoggerWidget};
+use wgpu::PowerPreference;
 use winit::dpi::LogicalSize;
 use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
@@ -47,8 +48,8 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    init_logger(LevelFilter::Info)?;
-    set_default_level(LevelFilter::Info);
+    init_logger(LevelFilter::Trace)?;
+    set_default_level(LevelFilter::Trace);
     set_log_file("shadertoy.log")?;
 
     let event_loop = EventLoop::with_user_event();
@@ -160,13 +161,21 @@ fn main() -> Result<()> {
         .with_visible(true);
     let window = builder.build(&event_loop)?;
 
+    // GPU power preference
+    let args: Vec<String> = std::env::args().collect();
+    let power_preference = if args.contains(&String::from("high")) {
+        PowerPreference::HighPerformance
+    } else {
+        PowerPreference::LowPower
+    };
+
     // Going async !
-    let app = futures_executor::block_on(App::init(window))?;
+    let app = futures_executor::block_on(App::init(window, power_preference))?;
     futures_executor::block_on(app.run(event_loop))?;
 
     should_exit.store(true, Ordering::Relaxed);
 
-    cli_thread.join().expect("Can't join thread ?");
+    cli_thread.join().unwrap();
 
     disable_raw_mode()?;
     execute!(io::stdout(), Clear(ClearType::All), LeaveAlternateScreen)?;

@@ -1,3 +1,5 @@
+use std::panic::catch_unwind;
+
 use anyhow::{Context, Result};
 use log::{debug, error, info, warn};
 use wgpu::{
@@ -27,7 +29,11 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub async fn new(window: &Window, push_constants_size: u32) -> Result<Self> {
+    pub async fn new(
+        window: &Window,
+        power_preference: PowerPreference,
+        push_constants_size: u32,
+    ) -> Result<Self> {
         let instance = Instance::new(BackendBit::PRIMARY);
         debug!("Found adapters :");
         instance
@@ -47,7 +53,7 @@ impl Renderer {
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {
                 // Use an integrated gpu if possible
-                power_preference: PowerPreference::LowPower,
+                power_preference,
                 compatible_surface: Some(&surface),
             })
             .await
@@ -64,7 +70,7 @@ impl Renderer {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    label: Some("I want a device"),
+                    label: Some("Gimme a device"),
                     features: Features::PUSH_CONSTANTS,
                     limits: Limits {
                         max_bind_groups: 1,
@@ -84,7 +90,11 @@ impl Renderer {
             .await?;
 
         // The output format
-        let format = TextureFormat::Rgba8UnormSrgb;
+        let format = if power_preference == PowerPreference::LowPower {
+            TextureFormat::Rgba8UnormSrgb
+        } else {
+            TextureFormat::Bgra8UnormSrgb
+        };
         let window_size = window.inner_size();
 
         let swapchain = {

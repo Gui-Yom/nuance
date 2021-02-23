@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result};
 use log::{debug, error, info, warn};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
+use wgpu::PowerPreference;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::Window;
@@ -39,9 +40,10 @@ pub struct App {
 }
 
 impl App {
-    pub async fn init(window: Window) -> Result<Self> {
+    pub async fn init(window: Window, power_preference: PowerPreference) -> Result<Self> {
         let window_size = window.inner_size();
-        let renderer = Renderer::new(&window, mem::size_of::<Globals>() as u32).await?;
+        let renderer =
+            Renderer::new(&window, power_preference, mem::size_of::<Globals>() as u32).await?;
         let (tx, rx) = std::sync::mpsc::channel();
         Ok(Self {
             window,
