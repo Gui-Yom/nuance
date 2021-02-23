@@ -27,7 +27,7 @@ with `shadertoy.exe high` to force the usage of a discrete gpu.
 ## Shaders
 
 Shadertoy allows you tu run a custom fragment shader on the whole screen. Shaders are written with
-the Vulkan flavor of GLSL (`#version 450`).
+the Vulkan flavor of GLSL (`#version 460`).
 The [GL_KHR_vulkan_glsl](https://github.com/KhronosGroup/GLSL/blob/master/extensions/khr/GL_KHR_vulkan_glsl.txt)
 extension is implicitly enabled. You can also use a shader already compiled to SpirV directly.
 
@@ -41,6 +41,8 @@ layout(push_constant) uniform Globals {
     uvec2 uResolution;
 // Mouse position
     uvec2 uMouse;
+// Mouse wheel
+    int iMouseWheel;
 // Aspect ratio
     float fRatio;
 // Time in sec
@@ -50,11 +52,15 @@ layout(push_constant) uniform Globals {
 };
 ```
 
+### Examples
+
+This repository includes some examples under `shaders/`. Some of these are not from me and are just
+included here for demonstration purposes. They are the property of their respective owners.
+
 ## TODO
 
 - Error handling
 - Hot GPU switch
-- Mouse wheel input support
 - Support custom constants (push_constants preferred else storage buffers)
 - Bind resources (like textures)
 - Sound processing
