@@ -1,29 +1,29 @@
 // Made by k-mouse (2016-11-23)
 // Modified from David Hoskins (2013-07-07) and joltz0r (2013-07-04)
+// https://www.shadertoy.com/view/llcXW7
 
 #version 460
+
+layout(location = 0) out vec4 fragColor;
+layout(push_constant) uniform Globals {
+// Window resolution
+    uvec2 uResolution;
+// Mouse position
+    uvec2 uMouse;
+// Mouse wheel
+    float iMouseWheel;
+// Aspect ratio
+    float fRatio;
+// Time in sec
+    float uTime;
+// The number of frame we're at
+    uint uFrame;
+};
 
 #define TAU 6.28318530718
 
 #define TILING_FACTOR 1.0
 #define MAX_ITER 8
-
-layout(location = 0) out vec4 outColor;
-layout(push_constant) uniform Globals {
-// Window resolution
-    vec2 uResolution;
-// Mouse position
-    vec2 uMouse;
-// Aspect ratio
-    float fRatio;
-// Time in sec
-    float uTime;
-// Time since last frame in sec
-    float uTimeDelta;
-// The number of frame we're at
-    uint uFrame;
-};
-
 
 float waterHighlight(vec2 p, float time, float foaminess) {
     vec2 i = vec2(p);
@@ -42,7 +42,6 @@ float waterHighlight(vec2 p, float time, float foaminess) {
     c = pow(abs(c), 8.0);
     return c / sqrt(foaminess_factor);
 }
-
 
 void main() {
     float time = uTime * 0.8 + 23.0;
@@ -63,5 +62,5 @@ void main() {
 
     color = mix(water_color, color, clearness);
 
-    outColor = vec4(color, 1.0);
+    fragColor = vec4(color, 1.0);
 }

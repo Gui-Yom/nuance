@@ -6,12 +6,14 @@
 
 #version 460
 
-layout(location = 0) out vec4 outColor;
+layout(location = 0) out vec4 fragColor;
 layout(push_constant) uniform Globals {
 // Window resolution
     uvec2 uResolution;
 // Mouse position
     uvec2 uMouse;
+// Mouse wheel
+    float iMouseWheel;
 // Aspect ratio
     float fRatio;
 // Time in sec
@@ -21,8 +23,8 @@ layout(push_constant) uniform Globals {
 };
 
 const int NUM_STEPS = 8;
-const float PI	 	= 3.141592;
-const float EPSILON	= 1e-3;
+const float PI = 3.141592;
+const float EPSILON = 1e-3;
 #define EPSILON_NRM (0.1 / uResolution.x)
 #define AA
 
@@ -213,5 +215,5 @@ void main() {
 #endif
     
     // post
-	outColor = vec4(pow(color,vec3(0.65)), 1.0);
+	fragColor = vec4(pow(color,vec3(0.65)), 1.0);
 }
