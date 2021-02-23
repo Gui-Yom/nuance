@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use log::{debug, error, info, warn};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use wgpu::PowerPreference;
-use winit::event::{Event, WindowEvent};
+use winit::event::{Event, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::Window;
 
@@ -25,6 +25,11 @@ pub enum Command {
     Exit,
 }
 
+struct Parameters {
+    target_framerate: Duration,
+    mouse_wheel_step: f32,
+}
+
 pub struct App {
     window: Window,
 
@@ -35,7 +40,7 @@ pub struct App {
     renderer: Renderer,
 
     started: Instant,
-    target_framerate: Duration,
+    params: Parameters,
     globals: Globals,
 }
 
@@ -52,10 +57,14 @@ impl App {
             watcher_rx: rx,
             renderer,
             started: Instant::now(),
-            target_framerate: Duration::from_secs_f32(1.0 / 30.0),
+            params: Parameters {
+                target_framerate: Duration::from_secs_f32(1.0 / 30.0),
+                mouse_wheel_step: 0.1,
+            },
             globals: Globals {
                 resolution: UVec2::new(window_size.width, window_size.height),
                 mouse: UVec2::zero(),
+                mouse_wheel: 0.0,
                 ratio: window_size.width as f32 / window_size.height as f32,
                 time: 0.0,
                 frame: 0,
@@ -124,43 +133,56 @@ impl App {
                         curr_shader_file = None;
                     }
                     Command::TargetFps(new_fps) => {
-                        self.target_framerate = Duration::from_secs_f32(1.0 / new_fps as f32)
+                        self.params.target_framerate = Duration::from_secs_f32(1.0 / new_fps as f32)
                     }
                     Command::Restart => {
                         info!("Restarting !");
                         // Reset the running globals
                         self.globals.frame = 0;
                         self.globals.time = 0.0;
+                        self.globals.mouse_wheel = 0.0;
                         self.started = Instant::now();
                     }
                     Command::Exit => {
                         *control_flow = ControlFlow::Exit;
                     }
                 },
-                Event::WindowEvent {
-                    event:
-                        WindowEvent::CursorMoved {
-                            device_id: _,
-                            position,
-                            ..
-                        },
-                    ..
-                } => {
-                    let size = self.window.inner_size();
-                    self.globals.mouse = UVec2::new(
-                        position.x.clamp(0.0, size.width as f64) as u32,
-                        position.y.clamp(0.0, size.height as f64) as u32,
-                    );
-                }
+                Event::WindowEvent { event, .. } => match event {
+                    WindowEvent::CursorMoved {
+                        device_id,
+                        position,
+                        ..
+                    } => {
+                        let size = self.window.inner_size();
+                        self.globals.mouse = UVec2::new(
+                            position.x.clamp(0.0, size.width as f64) as u32,
+                            position.y.clamp(0.0, size.height as f64) as u32,
+                        );
+                    }
+                    WindowEvent::MouseWheel {
+                        device_id, delta, ..
+                    } => match delta {
+                        MouseScrollDelta::LineDelta(_, value) => {
+                            self.globals.mouse_wheel += value * self.params.mouse_wheel_step;
+                        }
+                        MouseScrollDelta::PixelDelta(pos) => {
+                            info!("{:?}", pos);
+                        }
+                    },
+                    WindowEvent::CloseRequested => {
+                        *control_flow = ControlFlow::Exit;
+                    }
+                    _ => {}
+                },
                 Event::MainEventsCleared => {
                     let frame_time = last_draw_time.elapsed();
-                    if frame_time >= self.target_framerate {
+                    if frame_time >= self.params.target_framerate {
                         self.window.request_redraw();
                         last_draw_time = Instant::now();
                     } else {
                         // Sleep til next frame
                         *control_flow = ControlFlow::WaitUntil(
-                            Instant::now() + self.target_framerate - frame_time,
+                            Instant::now() + self.params.target_framerate - frame_time,
                         );
                     }
                     self.globals.time = self.started.elapsed().as_secs_f32();
@@ -170,13 +192,6 @@ impl App {
                         .render(bytemuck::bytes_of(&self.globals))
                         .unwrap();
                     self.globals.frame += 1;
-                }
-
-                Event::WindowEvent {
-                    event: WindowEvent::CloseRequested,
-                    ..
-                } => {
-                    *control_flow = ControlFlow::Exit;
                 }
                 _ => {}
             }

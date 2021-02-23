@@ -48,8 +48,8 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    init_logger(LevelFilter::Trace)?;
-    set_default_level(LevelFilter::Trace);
+    init_logger(LevelFilter::Info)?;
+    set_default_level(LevelFilter::Info);
     set_log_file("shadertoy.log")?;
 
     let event_loop = EventLoop::with_user_event();

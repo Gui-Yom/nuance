@@ -26,6 +26,8 @@ pub struct Globals {
     pub resolution: UVec2,
     /// Mouse pos
     pub mouse: UVec2,
+    /// Mouse wheel
+    pub mouse_wheel: f32,
     /// Draw area width/height ratio
     pub ratio: f32,
     /// Current running time in sec
