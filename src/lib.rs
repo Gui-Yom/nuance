@@ -14,6 +14,10 @@ use crate::renderer::Renderer;
 use crate::shader_loader::ShaderLoader;
 use crate::types::{Globals, UVec2};
 
+mod renderer;
+mod shader_loader;
+mod types;
+
 #[derive(Debug)]
 pub enum Command {
     Load(String),
@@ -30,7 +34,7 @@ struct Parameters {
     mouse_wheel_step: f32,
 }
 
-pub struct App {
+pub struct Shadertoy {
     window: Window,
 
     shader_loader: ShaderLoader,
@@ -44,7 +48,7 @@ pub struct App {
     globals: Globals,
 }
 
-impl App {
+impl Shadertoy {
     pub async fn init(window: Window, power_preference: PowerPreference) -> Result<Self> {
         let window_size = window.inner_size();
         let renderer =
@@ -149,7 +153,7 @@ impl App {
                 },
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::CursorMoved {
-                        device_id,
+                        device_id: _device_id,
                         position,
                         ..
                     } => {
@@ -160,7 +164,9 @@ impl App {
                         );
                     }
                     WindowEvent::MouseWheel {
-                        device_id, delta, ..
+                        device_id: _device_id,
+                        delta,
+                        ..
                     } => match delta {
                         MouseScrollDelta::LineDelta(_, value) => {
                             self.globals.mouse_wheel += value * self.params.mouse_wheel_step;

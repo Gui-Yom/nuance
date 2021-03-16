@@ -42,7 +42,7 @@ layout(push_constant) uniform Globals {
 // Mouse position
     uvec2 uMouse;
 // Mouse wheel
-    int iMouseWheel;
+    float fMouseWheel;
 // Aspect ratio
     float fRatio;
 // Time in sec

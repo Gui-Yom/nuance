@@ -22,14 +22,11 @@ use winit::dpi::LogicalSize;
 use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
 
-use crate::app::{App, Command};
+use shadertoy::{Command, Shadertoy};
+
 use crate::input::{InputBox, InputBoxState};
 
-mod app;
 mod input;
-mod renderer;
-mod shader_loader;
-mod types;
 
 static should_exit: AtomicBool = AtomicBool::new(false);
 
@@ -48,6 +45,7 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
+    //let level = LevelFilter::Debug;
     init_logger(LevelFilter::Info)?;
     set_default_level(LevelFilter::Info);
     set_log_file("shadertoy.log")?;
@@ -170,7 +168,7 @@ fn main() -> Result<()> {
     };
 
     // Going async !
-    let app = futures_executor::block_on(App::init(window, power_preference))?;
+    let app = futures_executor::block_on(Shadertoy::init(window, power_preference))?;
     futures_executor::block_on(app.run(event_loop))?;
 
     should_exit.store(true, Ordering::Relaxed);

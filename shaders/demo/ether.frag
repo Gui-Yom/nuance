@@ -30,7 +30,7 @@ float map(vec3 p) {
     p.xz *= m(uTime * 0.4);
     p.xy *= m(uTime * 0.3);
     vec3 q = p * 2.0 + uTime;
-    return length(p + vec3(sin(t * 0.7))) * log(length(p) + 1.0) + sin(q.x + sin(q.z + sin(q.y))) * 0.5 - 1.0;
+    return length(p + vec3(sin(uTime * 0.7))) * log(length(p) + 1.0) + sin(q.x + sin(q.z + sin(q.y))) * 0.5 - 1.0;
 }
 
 void main() {
