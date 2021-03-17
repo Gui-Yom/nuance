@@ -22,7 +22,7 @@ use winit::dpi::LogicalSize;
 use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
 
-use shadertoy::{Command, Shadertoy};
+use shadyboi::{Command, Shadyboi};
 
 use crate::input::{InputBox, InputBoxState};
 
@@ -168,7 +168,7 @@ fn main() -> Result<()> {
     };
 
     // Going async !
-    let app = futures_executor::block_on(Shadertoy::init(window, power_preference))?;
+    let app = futures_executor::block_on(Shadyboi::init(window, power_preference))?;
     futures_executor::block_on(app.run(event_loop))?;
 
     should_exit.store(true, Ordering::Relaxed);

@@ -1,4 +1,4 @@
-# Shadertoy
+# Shadyboi
 
 (Will be) a desktop equivalent to https://shadertoy.com.
 
@@ -6,13 +6,13 @@ Currently a good demo for wgpu-rs. Should be cross-platform.
 
 ## Usage
 
-Run in your terminal with `shadertoy.exe`, this will open a preview window and display a terminal UI
+Run in your terminal with `shadyboi.exe`, this will open a preview window and display a terminal UI
 for the logs. You can enter commands in your terminal to control the behavior of the simulation.
 
 ### Choose gpu
 
-By default it will use the first available low-power gpu that fills the criteria. Launch
-with `shadertoy.exe high` to force the usage of a discrete gpu.
+By default it will use the first available low-power gpu that match the criteria. Launch
+with `shadyboi.exe high` to force the usage of a discrete gpu.
 
 ### Commands
 
@@ -57,9 +57,17 @@ layout(push_constant) uniform Globals {
 This repository includes some examples under `shaders/`. Some of these are not from me and are just
 included here for demonstration purposes. They are the property of their respective owners.
 
+## Development
+
+We use `shaderc-rs` to compile shaders to spirv. It is therefore highly recommended to install the
+vulkan sdk and set the `VULKAN_SDK` env var in order to find the prebuilt shaderc libraries. If not,
+shaderc will download and build the vulkan libraries from source, which takes about 90% of this
+entire application build time.
+
 ## TODO
 
 - Error handling
+- Evaluate an alternative to shaderc as it adds the most bloat in the final binary.
 - Hot GPU switch
 - Support custom constants (push_constants preferred else storage buffers)
 - Bind resources (like textures)

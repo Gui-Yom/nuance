@@ -1,5 +1,5 @@
 [package]
-name = "shadertoy"
+name = "shadyboi"
 version = "0.1.0"
 authors = ["Guillaume Anthouard <guillaume.anthouard@hotmail.fr>"]
 edition = "2018"
@@ -21,6 +21,7 @@ winit = { version = "0.24" }
 futures-executor = { version = "0.3" }
 # To compile shaders to spir-v
 shaderc = { version = "0.7" }
+spirv-reflect = "0.2"
 # Error types
 anyhow = { version = "1" }
 # Converting types to bytes

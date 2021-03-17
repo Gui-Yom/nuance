@@ -1360,6 +1360,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd761ff957cb2a45fbb9ab3da6512de9de55872866160b23c25f1a841e99d29f"
 
 [[package]]
+name = "serde_derive"
+version = "1.0.124"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1800f7693e94e186f5e25a28291ae1570da908aff7d97a095dec1e56ff99069b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "shaderc"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1380,7 +1391,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "shadertoy"
+name = "shadyboi"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1390,6 +1401,7 @@ dependencies = [
  "log",
  "notify",
  "shaderc",
+ "spirv-reflect",
  "tui",
  "tui-logger",
  "wgpu",
@@ -1468,6 +1480,20 @@ dependencies = [
  "cfg-if 1.0.0",
  "libc",
  "winapi 0.3.9",
+]
+
+[[package]]
+name = "spirv-reflect"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cecc7af6a7d3ca6d15f4d6b5077df89c77ad1f4b314d0cabee221656d041dad7"
+dependencies = [
+ "bitflags",
+ "cc",
+ "num-traits",
+ "serde",
+ "serde_derive",
+ "spirv_headers",
 ]
 
 [[package]]

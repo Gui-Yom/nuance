@@ -14,9 +14,9 @@ use crate::renderer::Renderer;
 use crate::shader_loader::ShaderLoader;
 use crate::types::{Globals, UVec2};
 
-mod renderer;
-mod shader_loader;
-mod types;
+pub mod renderer;
+pub mod shader_loader;
+pub mod types;
 
 #[derive(Debug)]
 pub enum Command {
@@ -34,7 +34,7 @@ struct Parameters {
     mouse_wheel_step: f32,
 }
 
-pub struct Shadertoy {
+pub struct Shadyboi {
     window: Window,
 
     shader_loader: ShaderLoader,
@@ -48,7 +48,7 @@ pub struct Shadertoy {
     globals: Globals,
 }
 
-impl Shadertoy {
+impl Shadyboi {
     pub async fn init(window: Window, power_preference: PowerPreference) -> Result<Self> {
         let window_size = window.inner_size();
         let renderer =
