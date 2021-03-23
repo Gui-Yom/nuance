@@ -1,5 +1,5 @@
 [package]
-name = "shadyboi"
+name = "nuance"
 version = "0.1.0"
 authors = ["Guillaume Anthouard <guillaume.anthouard@hotmail.fr>"]
 edition = "2018"
@@ -34,3 +34,9 @@ log = { version = "0.4", features = ["std"] }
 crossterm = { version = "0.18" }
 tui = { version = "0.14", default-features = false, features = ["crossterm"] }
 tui-logger = { version = "0.6" }
+# GUI
+egui = { version = "0.10" }
+epi = { version = "0.10" }
+egui_wgpu_backend = { version = "0.5" }
+egui_winit_platform = { version = "0.5" }
+chrono = { version = "0.4" }

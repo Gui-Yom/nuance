@@ -2,9 +2,9 @@ use crossterm::event::KeyCode;
 use tui::buffer::Buffer;
 use tui::layout::Rect;
 use tui::text::{Span, Spans};
-use tui::widgets::{Paragraph, StatefulWidget, Widget};
+use tui::widgets::{Block, BorderType, Borders, Paragraph, StatefulWidget, Widget};
 
-pub struct InputBox {}
+pub struct InputBox;
 
 #[derive(Debug, Default)]
 pub struct InputBoxState {
@@ -58,10 +58,15 @@ impl StatefulWidget for InputBox {
     type State = InputBoxState;
 
     fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        let block = Block::default()
+            .border_type(BorderType::Rounded)
+            .borders(Borders::ALL);
+        let inner = block.inner(area);
         Paragraph::new(vec![Spans::from(vec![
             Span::raw("> "),
             Span::raw(state.text()),
         ])])
-        .render(area, buf);
+        .render(inner, buf);
+        block.render(area, buf);
     }
 }

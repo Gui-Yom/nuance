@@ -1,7 +1,5 @@
-use std::panic::catch_unwind;
-
 use anyhow::{Context, Result};
-use log::{debug, error, info, warn};
+use log::{debug, info};
 use wgpu::{
     include_spirv, Adapter, BackendBit, BlendState, Color, ColorTargetState, ColorWrite,
     CommandEncoderDescriptor, CullMode, Device, Features, FragmentState, FrontFace, Instance,

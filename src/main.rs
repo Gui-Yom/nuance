@@ -11,7 +11,7 @@ use crossterm::terminal::{
     LeaveAlternateScreen, SetTitle,
 };
 use crossterm::{event, execute};
-use log::{debug, error, info, LevelFilter};
+use log::{debug, LevelFilter};
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout};
 use tui::widgets::{Block, BorderType, Borders};
@@ -22,7 +22,7 @@ use winit::dpi::LogicalSize;
 use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
 
-use shadyboi::{Command, Shadyboi};
+use nuance::{Command, Shadyboi};
 
 use crate::input::{InputBox, InputBoxState};
 
@@ -35,20 +35,20 @@ fn main() -> Result<()> {
     //crossterm::terminal::enable_raw_mode();
 
     let mut stdout = io::stdout();
+    enable_raw_mode()?;
     execute!(
         stdout,
         EnterAlternateScreen,
         Clear(ClearType::All),
-        SetTitle("Shadertoy")
+        SetTitle("Nuance")
     )?;
-    enable_raw_mode()?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
     //let level = LevelFilter::Debug;
     init_logger(LevelFilter::Info)?;
     set_default_level(LevelFilter::Info);
-    set_log_file("shadertoy.log")?;
+    set_log_file("nuance.log")?;
 
     let event_loop = EventLoop::with_user_event();
     let ev_sender = event_loop.create_proxy();
@@ -60,9 +60,9 @@ fn main() -> Result<()> {
             if should_exit.load(Ordering::Relaxed) {
                 return Ok(());
             }
-            if event::poll(Duration::from_millis(500))? {
-                match event::read()? {
-                    Event::Key(KeyEvent { code, modifiers }) => match code {
+            if event::poll(Duration::from_millis(1000))? {
+                if let Event::Key(KeyEvent { code, modifiers }) = event::read()? {
+                    match code {
                         KeyCode::Esc => {
                             break;
                         }
@@ -82,7 +82,7 @@ fn main() -> Result<()> {
                             input_box_state.clear();
 
                             // Here we go
-                            let mut command = command.split(" ");
+                            let mut command = command.split(' ');
                             match command.next() {
                                 Some("load") => {
                                     let file =
@@ -126,24 +126,19 @@ fn main() -> Result<()> {
                         _ => {
                             debug!("{:?}", code);
                         }
-                    },
-                    _ => {}
+                    }
                 }
             }
             terminal.draw(|frame| {
                 let chunks = Layout::default()
                     .direction(Direction::Vertical)
-                    .constraints([Constraint::Percentage(90), Constraint::Max(1)])
+                    .constraints([Constraint::Percentage(90), Constraint::Max(3)])
                     .split(frame.size());
 
-                let widget = TuiLoggerWidget::default().block(
-                    Block::default()
-                        .borders(Borders::BOTTOM)
-                        .border_type(BorderType::Plain),
-                );
+                let widget = TuiLoggerWidget::default();
                 frame.render_widget(widget, chunks[0]);
 
-                let input_box = InputBox {};
+                let input_box = InputBox;
                 frame.render_stateful_widget(input_box, chunks[1], &mut input_box_state);
             })?;
         }
@@ -173,9 +168,9 @@ fn main() -> Result<()> {
 
     should_exit.store(true, Ordering::Relaxed);
 
-    cli_thread.join().unwrap();
+    cli_thread.join().unwrap()?;
 
-    disable_raw_mode()?;
     execute!(io::stdout(), Clear(ClearType::All), LeaveAlternateScreen)?;
+    disable_raw_mode()?;
     Ok(())
 }

@@ -2,8 +2,8 @@ use std::mem;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
-use anyhow::{Context, Result};
-use log::{debug, error, info, warn};
+use anyhow::Result;
+use log::info;
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use wgpu::PowerPreference;
 use winit::event::{Event, MouseScrollDelta, WindowEvent};
@@ -88,13 +88,10 @@ impl Shadyboi {
             // Run this loop indefinitely
             *control_flow = ControlFlow::Poll;
 
-            match self.watcher_rx.try_recv() {
-                Ok(DebouncedEvent::Write(path)) => {
-                    proxy
-                        .send_event(Command::Load(path.to_str().unwrap().to_string()))
-                        .unwrap();
-                }
-                _ => {}
+            if let Ok(DebouncedEvent::Write(path)) = self.watcher_rx.try_recv() {
+                proxy
+                    .send_event(Command::Load(path.to_str().unwrap().to_string()))
+                    .unwrap();
             }
 
             match event {
@@ -117,9 +114,11 @@ impl Shadyboi {
                         );
                     }
                     Command::Reload => {
-                        proxy.send_event(Command::Load(
-                            curr_shader_file.as_ref().unwrap().to_string(),
-                        ));
+                        proxy
+                            .send_event(Command::Load(
+                                curr_shader_file.as_ref().unwrap().to_string(),
+                            ))
+                            .expect("Can't send event ?");
                     }
                     Command::Watch(path) => {
                         curr_shader_file = Some(path);
@@ -202,6 +201,5 @@ impl Shadyboi {
                 _ => {}
             }
         });
-        Ok(())
     }
 }

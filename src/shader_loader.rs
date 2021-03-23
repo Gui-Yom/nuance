@@ -1,12 +1,10 @@
 use std::borrow::Cow;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{anyhow, Result};
-use log::debug;
-use log::info;
 use shaderc::{
-    CompileOptions, Compiler, EnvVersion, GlslProfile, IncludeType, Limit, OptimizationLevel,
+    CompileOptions, Compiler, EnvVersion, GlslProfile, IncludeType, OptimizationLevel,
     ResolvedInclude, ShaderKind, SourceLanguage, TargetEnv,
 };
 use wgpu::ShaderSource;
@@ -16,12 +14,18 @@ pub struct ShaderLoader {
     includes: Vec<String>,
 }
 
-impl ShaderLoader {
-    pub fn new() -> Self {
+impl Default for ShaderLoader {
+    fn default() -> Self {
         ShaderLoader {
             compiler: Compiler::new().expect("Can't create compiler"),
             includes: Vec::with_capacity(4),
         }
+    }
+}
+
+impl ShaderLoader {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn add_include(&mut self, include: &str) {
@@ -57,10 +61,33 @@ impl ShaderLoader {
         let includes = &self.includes;
         let mut options = CompileOptions::new().unwrap();
         options.set_source_language(SourceLanguage::GLSL);
+        // Required so we can introspect them
+        options.set_generate_debug_info();
         options.set_target_env(TargetEnv::Vulkan, EnvVersion::WebGPU as u32);
         options.set_optimization_level(OptimizationLevel::Performance);
         options.set_forced_version_profile(460, GlslProfile::None);
-        options.set_include_callback(|name, inctype, source_file, source_line| match inctype {
+        options.set_include_callback(|name, include_type, source_file, _| {
+            Self::find_include(includes, name, include_type, source_file)
+        });
+        let compiled = self.compiler.compile_into_spirv(
+            source,
+            ShaderKind::Fragment,
+            name,
+            entrypoint,
+            Some(&options),
+        )?;
+        Ok(ShaderSource::SpirV(Cow::Owned(
+            compiled.as_binary().to_owned(),
+        )))
+    }
+
+    fn find_include(
+        includes: &[String],
+        name: &str,
+        include_type: IncludeType,
+        source_file: &str,
+    ) -> Result<ResolvedInclude, String> {
+        match include_type {
             IncludeType::Relative => {
                 let local_inc = Path::new(source_file).parent().unwrap().join(name);
                 if local_inc.exists() {
@@ -82,7 +109,7 @@ impl ShaderLoader {
                                 None
                             }
                         })
-                        .ok_or("Include not found !".to_string())
+                        .ok_or_else(|| "Include not found !".to_string())
                 }
             }
             IncludeType::Standard => {
@@ -98,16 +125,6 @@ impl ShaderLoader {
                     Err("No standard include with this name !".to_string())
                 }
             }
-        });
-        let compiled = self.compiler.compile_into_spirv(
-            source,
-            ShaderKind::Fragment,
-            name,
-            entrypoint,
-            Some(&options),
-        )?;
-        Ok(ShaderSource::SpirV(Cow::Owned(
-            compiled.as_binary().to_owned(),
-        )))
+        }
     }
 }
