@@ -14,7 +14,6 @@ use crossterm::{event, execute};
 use log::{debug, LevelFilter};
 use tui::backend::CrosstermBackend;
 use tui::layout::{Constraint, Direction, Layout};
-use tui::widgets::{Block, BorderType, Borders};
 use tui::Terminal;
 use tui_logger::{init_logger, set_default_level, set_log_file, TuiLoggerWidget};
 use wgpu::PowerPreference;

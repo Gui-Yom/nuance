@@ -19,9 +19,10 @@ wgpu = { version = "0.7" }
 winit = { version = "0.24" }
 # Async runtime
 futures-executor = { version = "0.3" }
-# To compile shaders to spir-v
+# glsl to spirv
 shaderc = { version = "0.7" }
-spirv-reflect = "0.2"
+# parse glsl
+glsl = { version = "6" }
 # Error types
 anyhow = { version = "1" }
 # Converting types to bytes

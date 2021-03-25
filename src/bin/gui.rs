@@ -1,59 +1,156 @@
 use std::time::Instant;
+use std::{fs, ops::Deref};
+use std::{
+    ops::RangeInclusive,
+    sync::{Arc, Mutex},
+};
 
 use chrono::Timelike;
-use egui::FontDefinitions;
+use egui::{DragValue, FontDefinitions};
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::{Platform, PlatformDescriptor};
-use spirv_reflect::ShaderModule;
-use wgpu::ShaderSource;
-use winit::event::Event::{RedrawRequested, UserEvent, WindowEvent};
+use glsl::syntax::{
+    Declaration, ExternalDeclaration, LayoutQualifier, LayoutQualifierSpec, TypeQualifierSpec,
+};
+use glsl::{
+    parser::Parse,
+    syntax::{Block, Expr, Identifier, NonEmpty, StructFieldSpecifier},
+};
 use winit::event_loop::ControlFlow;
+use winit::{event::Event, event_loop::EventLoopProxy};
 
-use nuance::shader_loader::ShaderLoader;
-
-const INITIAL_WIDTH: u32 = 800;
-const INITIAL_HEIGHT: u32 = 600;
 const OUTPUT_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Bgra8UnormSrgb;
 
-/// A custom event type for the winit app.
-enum Event {
+enum InternalEvent {
     RequestRedraw,
 }
-
 /// This is the repaint signal type that egui needs for requesting a repaint from another thread.
 /// It sends the custom RequestRedraw event to the winit event loop.
-struct ExampleRepaintSignal(std::sync::Mutex<winit::event_loop::EventLoopProxy<Event>>);
+struct ExampleRepaintSignal(Mutex<EventLoopProxy<InternalEvent>>);
 
 impl epi::RepaintSignal for ExampleRepaintSignal {
     fn request_repaint(&self) {
-        self.0.lock().unwrap().send_event(Event::RequestRedraw).ok();
+        self.0
+            .lock()
+            .unwrap()
+            .send_event(InternalEvent::RequestRedraw)
+            .ok();
     }
 }
 
-/// A simple egui + wgpu + winit based example.
-fn main() {
-    let mut loader = ShaderLoader::new();
-    let shader = loader.load_shader("shaders/purple.frag").unwrap();
-    let bindings = match shader {
-        ShaderSource::SpirV(data) => {
-            let module = ShaderModule::load_u32_data(data.as_ref()).unwrap();
-            Some(module.enumerate_descriptor_bindings(Some("main")).unwrap())
+struct Slider {
+    name: String,
+    range: RangeInclusive<f32>,
+    value: f32,
+}
+
+/// Extract sliders from a pseudo-GLSL source
+fn extract_sliders_from_glsl(source: &str) -> Vec<Slider> {
+    // The AST
+    let mut ast = glsl::syntax::TranslationUnit::parse(&source).unwrap();
+    let block = ast.0 .0.iter_mut().find_map(|it| match it {
+        ExternalDeclaration::Declaration(Declaration::Block(block)) => {
+            match block.qualifier.qualifiers.0.first() {
+                Some(TypeQualifierSpec::Layout(layout)) => match layout.ids.0.first() {
+                    Some(LayoutQualifierSpec::Identifier(id, _)) => {
+                        if id.0 == "params" {
+                            Some(block)
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                },
+                _ => None,
+            }
         }
-        ShaderSource::Wgsl(_) => None,
-    };
-    if bindings.is_none() {
-        return;
+        _ => None,
+    });
+    if block.is_none() {
+        return Vec::new();
     }
+    let block = block.unwrap();
+
+    sanitize_block(block);
+
+    let mut temp = Vec::new();
+    for field in block.fields.iter_mut() {
+        let name = field.identifiers.0.first().unwrap().ident.0.clone();
+        let range = match field
+            .qualifier
+            .as_ref()
+            .unwrap()
+            .qualifiers
+            .0
+            .first()
+            .unwrap()
+        {
+            TypeQualifierSpec::Layout(LayoutQualifier { ids }) => {
+                let mut min: f32 = 0.0;
+                let mut max: f32 = 0.0;
+                for qualifier in ids.0.iter() {
+                    if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
+                        if id.0 == "min" {
+                            if let Expr::IntConst(value) = param.as_ref().unwrap().deref() {
+                                min = *value as f32;
+                            }
+                        }
+                        if id.0 == "max" {
+                            if let Expr::IntConst(value) = param.as_ref().unwrap().deref() {
+                                max = *value as f32;
+                            }
+                        }
+                    }
+                }
+                min..=max
+            }
+            _ => 0.0..=100.0,
+        };
+        temp.push(Slider {
+            name,
+            range,
+            value: 0.0,
+        });
+        // FIXME field might not need transpiling
+        sanitize_field(field);
+    }
+    temp
+}
+
+fn sanitize_block(block: &mut Block) {
+    block.qualifier.qualifiers.0[0] = TypeQualifierSpec::Layout(LayoutQualifier {
+        ids: NonEmpty(vec![
+            LayoutQualifierSpec::Identifier(
+                Identifier(String::from("set")),
+                Some(Box::new(Expr::IntConst(0))),
+            ),
+            LayoutQualifierSpec::Identifier(
+                Identifier(String::from("binding")),
+                Some(Box::new(Expr::IntConst(0))),
+            ),
+        ]),
+    });
+}
+
+fn sanitize_field(field: &mut StructFieldSpecifier) {}
+
+fn main() {
+    let mut sliders = {
+        let source = fs::read_to_string("shaders/purple.frag").unwrap();
+        // TODO preprocess source before ?
+
+        extract_sliders_from_glsl(&source)
+    };
 
     let event_loop = winit::event_loop::EventLoop::with_user_event();
     let window = winit::window::WindowBuilder::new()
         .with_decorations(true)
         .with_resizable(true)
         .with_transparent(false)
-        .with_title("egui-wgpu_winit example")
+        .with_title("Nuance")
         .with_inner_size(winit::dpi::PhysicalSize {
-            width: INITIAL_WIDTH,
-            height: INITIAL_HEIGHT,
+            width: 400,
+            height: 300,
         })
         .build(&event_loop)
         .unwrap();
@@ -88,9 +185,7 @@ fn main() {
     };
     let mut swap_chain = device.create_swap_chain(&surface, &sc_desc);
 
-    let repaint_signal = std::sync::Arc::new(ExampleRepaintSignal(std::sync::Mutex::new(
-        event_loop.create_proxy(),
-    )));
+    let repaint_signal = Arc::new(ExampleRepaintSignal(Mutex::new(event_loop.create_proxy())));
 
     // We use the egui_winit_platform crate as the platform.
     let mut platform = Platform::new(PlatformDescriptor {
@@ -111,7 +206,7 @@ fn main() {
         platform.handle_event(&event);
 
         match event {
-            RedrawRequested(..) => {
+            Event::RedrawRequested(_) => {
                 platform.update_time(start_time.elapsed().as_secs_f64());
 
                 let output_frame = match swap_chain.get_current_frame() {
@@ -143,6 +238,17 @@ fn main() {
                 egui::TopPanel::top("top_panel").show(&platform.context(), |ui| {
                     if ui.button("Hello !").clicked() {
                         println!("Clicked !");
+                    }
+                    ui.separator();
+
+                    for slider in sliders.iter_mut() {
+                        ui.add(
+                            DragValue::f32(&mut slider.value)
+                                .prefix(format!("{}: ", slider.name))
+                                .clamp_range(slider.range.clone())
+                                .fixed_decimals(2)
+                                .speed(0.10),
+                        );
                     }
                 });
 
@@ -180,13 +286,13 @@ fn main() {
                 queue.submit(Some(encoder.finish()));
                 *control_flow = ControlFlow::Poll;
             }
-            MainEventsCleared => {
+            Event::MainEventsCleared => {
                 window.request_redraw();
             }
-            UserEvent(Event::RequestRedraw) => {
+            Event::UserEvent(InternalEvent::RequestRedraw) => {
                 window.request_redraw();
             }
-            WindowEvent { event, .. } => match event {
+            Event::WindowEvent { event, .. } => match event {
                 winit::event::WindowEvent::Resized(size) => {
                     sc_desc.width = size.width;
                     sc_desc.height = size.height;

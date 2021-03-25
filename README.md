@@ -1,4 +1,4 @@
-# Shadyboi
+# Nuance
 
 (Will be) a desktop equivalent to https://shadertoy.com.
 
@@ -6,13 +6,13 @@ Currently a good demo for wgpu-rs. Should be cross-platform.
 
 ## Usage
 
-Run in your terminal with `shadyboi.exe`, this will open a preview window and display a terminal UI
+Run in your terminal with `nuance.exe`, this will open a preview window and display a terminal UI
 for the logs. You can enter commands in your terminal to control the behavior of the simulation.
 
 ### Choose gpu
 
 By default it will use the first available low-power gpu that match the criteria. Launch
-with `shadyboi.exe high` to force the usage of a discrete gpu.
+with `nuance.exe high` to force the usage of a discrete gpu.
 
 ### Commands
 
@@ -26,7 +26,7 @@ with `shadyboi.exe high` to force the usage of a discrete gpu.
 
 ## Shaders
 
-Shadertoy allows you tu run a custom fragment shader on the whole screen. Shaders are written with
+Nuance allows you tu run a custom fragment shader on the whole screen. Shaders are written with
 the Vulkan flavor of GLSL (`#version 460`).
 The [GL_KHR_vulkan_glsl](https://github.com/KhronosGroup/GLSL/blob/master/extensions/khr/GL_KHR_vulkan_glsl.txt)
 extension is implicitly enabled. You can also use a shader already compiled to SpirV directly.
@@ -47,7 +47,7 @@ layout(push_constant) uniform Globals {
     float fRatio;
 // Time in sec
     float uTime;
-// The number of frame we're at
+// Incremented at each new frame
     uint uFrame;
 };
 ```
@@ -73,4 +73,3 @@ entire application build time.
 - Bind resources (like textures)
 - Sound processing
 - Allow saving to image, gif or video
-- GUI (imgui or iced/druid) to display information (and interact ?)

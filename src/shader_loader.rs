@@ -61,14 +61,32 @@ impl ShaderLoader {
         let includes = &self.includes;
         let mut options = CompileOptions::new().unwrap();
         options.set_source_language(SourceLanguage::GLSL);
-        // Required so we can introspect them
+        // Required so we can introspect the shaders
         options.set_generate_debug_info();
-        options.set_target_env(TargetEnv::Vulkan, EnvVersion::WebGPU as u32);
         options.set_optimization_level(OptimizationLevel::Performance);
+        options.set_target_env(TargetEnv::Vulkan, EnvVersion::WebGPU as u32);
+        //options.set_target_spirv(SpirvVersion::V1_5);
         options.set_forced_version_profile(460, GlslProfile::None);
         options.set_include_callback(|name, include_type, source_file, _| {
             Self::find_include(includes, name, include_type, source_file)
         });
+        /*
+        let result = self
+            .compiler
+            .preprocess(source, name, entrypoint, Some(&options));
+        if let Ok(inner) = result {
+            println!("preprocessed : {}", inner.as_text());
+        }
+        let result = self.compiler.compile_into_spirv_assembly(
+            source,
+            ShaderKind::Fragment,
+            name,
+            entrypoint,
+            Some(&options),
+        );
+        if let Ok(inner) = result {
+            println!("asm : {}", inner.as_text());
+        }*/
         let compiled = self.compiler.compile_into_spirv(
             source,
             ShaderKind::Fragment,
