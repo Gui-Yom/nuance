@@ -22,7 +22,7 @@ futures-executor = { version = "0.3" }
 # glsl to spirv
 shaderc = { version = "0.7" }
 # parse glsl
-glsl = { version = "6" }
+glsl-lang = { git = "https://github.com/vtavernier/glsl-lang" }
 # Error types
 anyhow = { version = "1" }
 # Converting types to bytes
@@ -41,3 +41,7 @@ epi = { version = "0.10" }
 egui_wgpu_backend = { version = "0.5" }
 egui_winit_platform = { version = "0.5" }
 chrono = { version = "0.4" }
+
+[patch.crates-io]
+lang-util = { git = "https://github.com/vtavernier/glsl-lang" }
+lang-util-derive = { git = "https://github.com/vtavernier/glsl-lang" }
