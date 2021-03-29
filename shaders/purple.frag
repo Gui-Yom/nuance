@@ -18,9 +18,11 @@ layout(push_constant) uniform Globals {
 layout(params) uniform Params {
     layout(min = 0, max = 100, step = 1) float fSlider0;
     layout(min = 0, max = 20) float fSlider1;
+    layout(min = 0, max = 1) float fSlider2;
 };
 
 void main() {
+    float maxSlider = fSlider0.max;
     fragColor = vec4(fSlider0, fSlider1, fSlider2, 1.0);
     //fragColor = vec4(1.0, 0.0, 1.0, 1.0);
 }

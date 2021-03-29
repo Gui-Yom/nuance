@@ -12,7 +12,7 @@ for the logs. You can enter commands in your terminal to control the behavior of
 ### Choose gpu
 
 By default it will use the first available low-power gpu that match the criteria. Launch
-with `nuance.exe high` to force the usage of a discrete gpu.
+with `nuance.exe high` to force the usage of a discrete high-power gpu.
 
 ### Commands
 
@@ -20,7 +20,7 @@ with `nuance.exe high` to force the usage of a discrete gpu.
 - `reload` to reload the currently loaded shader
 - `watch <file>` to watch for changes to `file` and reload the shader automatically
 - `unwatch` to stop watching for changes
-- `framerate <target_fps>` will limit the fps to `target_fps`
+- `framerate <target_fps>` will limit the fps to `target_fps`, default to 30
 - `restart` to reset the globals
 - `exit`
 
@@ -52,6 +52,19 @@ layout(push_constant) uniform Globals {
 };
 ```
 
+### Custom parameters
+
+You can specify additional parameters to your shader using an interface block.
+When compiling your shader, parameters will be generated on the fly accordingly.
+Sliders and other appropriate UI elements will appear on screen.
+Example : 
+```glsl
+layout(params) uniform Params {
+    layout(min = 0, max = 100, step = 1) float fSlider0;
+    layout(min = 0, max = 20) float fSlider1;
+};
+```
+
 ### Examples
 
 This repository includes some examples under `shaders/`. Some of these are not from me and are just
@@ -66,10 +79,11 @@ entire application build time.
 
 ## TODO
 
-- Error handling
-- Evaluate an alternative to shaderc as it adds the most bloat in the final binary.
-- Hot GPU switch
-- Support custom constants (push_constants preferred else storage buffers)
-- Bind resources (like textures)
+- GUI with sliders (to interact with your shader values in realtime)
+- Error handling (currently it crashes if something goes wrong)
+- GPU hot switch (for when you see that you need some extra gpu juice)
+- Bind textures as input
+- Bind buffers as output
+- Provide access to last rendered texture for stateful simulations
 - Sound processing
-- Allow saving to image, gif or video
+- Save to image, gif or video

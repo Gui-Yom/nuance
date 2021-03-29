@@ -17,6 +17,7 @@ use crate::types::{Globals, UVec2};
 pub mod renderer;
 pub mod shader_loader;
 pub mod types;
+pub mod extractor;
 
 #[derive(Debug)]
 pub enum Command {

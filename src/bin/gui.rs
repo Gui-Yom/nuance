@@ -1,24 +1,12 @@
+use std::fs;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use std::{fs, ops::Deref};
-use std::{
-    ops::RangeInclusive,
-    sync::{Arc, Mutex},
-};
 
 use chrono::Timelike;
 use egui::{DragValue, FontDefinitions};
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::{Platform, PlatformDescriptor};
-use glsl_lang::parse::{Parsable, ParseOptions};
-use glsl_lang::{
-    ast::{
-        Block, DeclarationData, Expr, ExternalDeclarationData, Identifier, IdentifierData,
-        LayoutQualifier, LayoutQualifierSpec, SmolStr, StructFieldSpecifier, TranslationUnit,
-        TypeQualifierSpec,
-    },
-    transpiler::glsl::{self, FormattingState},
-};
-use log::debug;
+use nuance::extractor;
 use winit::event_loop::ControlFlow;
 use winit::{event::Event, event_loop::EventLoopProxy};
 
@@ -41,151 +29,12 @@ impl epi::RepaintSignal for ExampleRepaintSignal {
     }
 }
 
-struct Slider {
-    name: String,
-    range: RangeInclusive<f32>,
-    value: f32,
-}
-
-/// Extract sliders from a pseudo-GLSL source
-/// returns the sliders and the transpiled source if necessary
-fn extract_sliders_from_glsl(source: &str) -> Option<(Vec<Slider>, String)> {
-    // The AST
-    let (mut ast, _ctx) = TranslationUnit::parse_with_options(
-        source,
-        &ParseOptions {
-            target_vulkan: true,
-            source_id: 0,
-            allow_rs_ident: false,
-        }
-        .build(),
-    )
-    .expect("Invalid GLSL source.");
-
-    let block = extract_params_block(&mut ast);
-    if block.is_none() {
-        debug!("Can't find params block.");
-        return None;
-    }
-    let block = block.unwrap();
-
-    convert_block(block);
-
-    let mut temp = Vec::new();
-    for field in block.fields.iter_mut() {
-        temp.push(create_slider_from_field(field));
-        // FIXME field might not need transpiling if we allow default sliders
-        convert_field(field);
-    }
-    let mut transpiled = String::new();
-    glsl_lang::transpiler::glsl::show_translation_unit(
-        &mut transpiled,
-        &ast,
-        FormattingState::default(),
-    )
-    .expect("Can't transpile ast");
-    Some((temp, transpiled))
-}
-
-fn extract_params_block(ast: &mut TranslationUnit) -> Option<&mut Block> {
-    ast.0.iter_mut().find_map(|node| {
-        if let ExternalDeclarationData::Declaration(ref mut node) = node.content {
-            if let DeclarationData::Block(ref mut block) = node.content {
-                if let Some(TypeQualifierSpec::Layout(layout)) = block.qualifier.qualifiers.first()
-                {
-                    if let Some(LayoutQualifierSpec::Identifier(id, _)) = layout.ids.first() {
-                        if id.content.0 == "params" {
-                            return Some(block);
-                        }
-                    }
-                }
-            }
-        }
-        None
-    })
-}
-
-fn create_slider_from_field(field: &StructFieldSpecifier) -> Slider {
-    let name = field
-        .identifiers
-        .first()
-        .unwrap()
-        .ident
-        .content
-        .0
-        .to_string();
-
-    // TODO different sliders and params based on field type
-
-    let range = match field
-        .qualifier
-        .as_ref()
-        .unwrap()
-        .qualifiers
-        .first()
-        .unwrap()
-    {
-        TypeQualifierSpec::Layout(LayoutQualifier { ids }) => {
-            let mut min: f32 = 0.0;
-            let mut max: f32 = 0.0;
-            for qualifier in ids.iter() {
-                if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
-                    if id.0 == "min" {
-                        if let Expr::IntConst(value) = param.as_ref().unwrap().deref() {
-                            min = *value as f32;
-                        }
-                    }
-                    if id.0 == "max" {
-                        if let Expr::IntConst(value) = param.as_ref().unwrap().deref() {
-                            max = *value as f32;
-                        }
-                    }
-                }
-            }
-            min..=max
-        }
-        _ => 0.0..=100.0,
-    };
-    Slider {
-        name,
-        range,
-        value: 0.0,
-    }
-}
-
-/// Replace the layout(params) with a predefined layout(set=?, binding=?)
-fn convert_block(block: &mut Block) {
-    block.qualifier.qualifiers[0] = TypeQualifierSpec::Layout(LayoutQualifier {
-        ids: vec![
-            LayoutQualifierSpec::Identifier(
-                Identifier {
-                    content: IdentifierData(SmolStr::new("set")),
-                    span: None,
-                },
-                Some(Box::new(Expr::IntConst(0))),
-            ),
-            LayoutQualifierSpec::Identifier(
-                Identifier {
-                    content: IdentifierData(SmolStr::new("binding")),
-                    span: None,
-                },
-                Some(Box::new(Expr::IntConst(0))),
-            ),
-        ],
-    });
-}
-
-/// Replace the layout(min=?, max=?) with nothing
-fn convert_field(field: &mut StructFieldSpecifier) {
-    field.qualifier = None;
-}
-
 fn main() {
     let (mut sliders, source) = {
         let source = fs::read_to_string("shaders/purple.frag").unwrap();
         // TODO preprocess source before ?
 
-        let option = extract_sliders_from_glsl(&source);
+        let option = extractor::extract(&source);
         option.unwrap_or((Vec::new(), source))
     };
     println!("Source : \n{}", source);
