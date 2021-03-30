@@ -1,6 +1,7 @@
 //! Extract information from glsl source and transpiles it to valid glsl source code.
 
-use std::ops::{Deref, RangeBounds, RangeInclusive};
+use core::panic;
+use std::ops::Deref;
 
 use glsl_lang::{
     ast::{
@@ -11,18 +12,18 @@ use glsl_lang::{
     transpiler::glsl::FormattingState,
     visitor::{HostMut, Visit, VisitorMut},
 };
-use log::debug;
+use log::{debug, error};
 
-pub struct Slider {
+pub struct Param {
     pub name: String,
-    pub range: RangeInclusive<f32>,
-    pub step: f32,
+    pub min: f32,
+    pub max: f32,
     pub value: f32,
 }
 
 /// Traverses the ast and extract useful data while converting the ast to valid glsl source
 struct Extractor {
-    sliders: Vec<Slider>,
+    sliders: Vec<Param>,
 }
 
 impl VisitorMut for Extractor {
@@ -49,20 +50,8 @@ impl VisitorMut for Extractor {
                 let name = ident0.content.0.as_str();
                 if let Some(slider) = self.sliders.iter().find(|it| it.name == name) {
                     *expr = Expr::FloatConst(match ident1.content.0.as_str() {
-                        "max" => {
-                            let bound = slider.range.end_bound();
-                            match bound {
-                                std::ops::Bound::Included(value) => *value,
-                                _ => panic!("Wrong range !"),
-                            }
-                        }
-                        "min" => {
-                            let bound = slider.range.start_bound();
-                            match bound {
-                                std::ops::Bound::Included(value) => *value,
-                                _ => panic!("Wrong range !"),
-                            }
-                        }
+                        "max" => slider.max,
+                        "min" => slider.min,
                         _ => panic!("No such field exist !"),
                     })
                 } else {
@@ -76,7 +65,7 @@ impl VisitorMut for Extractor {
 }
 
 // TODO different sliders for different field types
-pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Slider {
+pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Param {
     let name = field
         .identifiers
         .first()
@@ -88,7 +77,10 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Slider {
 
     // TODO different sliders and params based on field type
 
-    let (range, step, value) = if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) = field
+    let mut min = 0.0;
+    let mut max = 1.0;
+    let mut init = 0.0;
+    if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) = field
         .qualifier
         .as_ref()
         .unwrap()
@@ -96,42 +88,30 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Slider {
         .first()
         .unwrap()
     {
-        let mut min: f32 = 0.0;
-        let mut max: f32 = 100.0;
-        let mut step: f32 = 1.0;
-        let mut init: f32 = 0.0;
         for qualifier in ids.iter() {
             if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
                 match id.0.as_str() {
-                    "min" => match param.as_ref().unwrap().deref() {
-                        Expr::FloatConst(value) => min = *value,
-                        _ => {}
-                    },
-                    "max" => match param.as_ref().unwrap().deref() {
-                        Expr::FloatConst(value) => max = *value,
-                        _ => {}
-                    },
-                    "step" => match param.as_ref().unwrap().deref() {
-                        Expr::FloatConst(value) => step = *value,
-                        _ => {}
-                    },
-                    "init" => match param.as_ref().unwrap().deref() {
-                        Expr::FloatConst(value) => init = *value,
-                        _ => {}
-                    },
-                    _ => {}
+                    "min" => {
+                        min = param.as_ref().unwrap().deref().coerce_const();
+                    }
+                    "max" => {
+                        max = param.as_ref().unwrap().deref().coerce_const();
+                    }
+                    "init" => {
+                        init = param.as_ref().unwrap().deref().coerce_const();
+                    }
+                    other => {
+                        error!("Wrong slider setting : {}", other)
+                    }
                 }
             }
         }
-        (min..=max, step, init)
-    } else {
-        (0.0..=100.0, 1.0, 0.0)
-    };
-    Slider {
+    }
+    Param {
         name,
-        range,
-        step,
-        value,
+        min,
+        max,
+        value: init,
     }
 }
 
@@ -162,7 +142,7 @@ pub fn convert_field(field: &mut StructFieldSpecifier) {
     field.qualifier = None;
 }
 
-pub fn extract(source: &str) -> Option<(Vec<Slider>, String)> {
+pub fn extract(source: &str) -> Option<(Vec<Param>, String)> {
     let mut extractor = Extractor {
         sliders: Vec::new(),
     };
@@ -190,4 +170,64 @@ pub fn extract(source: &str) -> Option<(Vec<Slider>, String)> {
     )
     .expect("Can't transpile ast");
     Some((extractor.sliders, transpiled))
+}
+
+trait CoerceConst<T> {
+    fn coerce_const(&self) -> T;
+}
+
+impl CoerceConst<f32> for Expr {
+    fn coerce_const(&self) -> f32 {
+        match self {
+            Expr::IntConst(value) => *value as f32,
+            Expr::UIntConst(value) => *value as f32,
+            Expr::FloatConst(value) => *value,
+            Expr::DoubleConst(value) => *value as f32,
+            _ => {
+                panic!("Not a number constant")
+            }
+        }
+    }
+}
+
+impl CoerceConst<f64> for Expr {
+    fn coerce_const(&self) -> f64 {
+        match self {
+            Expr::IntConst(value) => *value as f64,
+            Expr::UIntConst(value) => *value as f64,
+            Expr::FloatConst(value) => *value as f64,
+            Expr::DoubleConst(value) => *value,
+            _ => {
+                panic!("Not a number constant")
+            }
+        }
+    }
+}
+
+impl CoerceConst<i32> for Expr {
+    fn coerce_const(&self) -> i32 {
+        match self {
+            Expr::IntConst(value) => *value,
+            Expr::UIntConst(value) => *value as i32,
+            Expr::FloatConst(value) => *value as i32,
+            Expr::DoubleConst(value) => *value as i32,
+            _ => {
+                panic!("Not a number constant")
+            }
+        }
+    }
+}
+
+impl CoerceConst<u32> for Expr {
+    fn coerce_const(&self) -> u32 {
+        match self {
+            Expr::IntConst(value) => *value as u32,
+            Expr::UIntConst(value) => *value,
+            Expr::FloatConst(value) => *value as u32,
+            Expr::DoubleConst(value) => *value as u32,
+            _ => {
+                panic!("Not a number constant")
+            }
+        }
+    }
 }

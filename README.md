@@ -79,6 +79,7 @@ entire application build time.
 
 ## TODO
 
+- Merge params uniform block with push_constant block
 - GUI with sliders (to interact with your shader values in realtime)
 - Error handling (currently it crashes if something goes wrong)
 - GPU hot switch (for when you see that you need some extra gpu juice)

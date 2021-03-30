@@ -3,11 +3,16 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use chrono::Timelike;
-use egui::{DragValue, FontDefinitions};
+use egui::{DragValue, FontDefinitions, TextureId};
 use egui_wgpu_backend::{RenderPass, ScreenDescriptor};
 use egui_winit_platform::{Platform, PlatformDescriptor};
 use nuance::extractor;
-use winit::event_loop::ControlFlow;
+use wgpu::BackendBit;
+use winit::{
+    dpi::PhysicalSize,
+    event_loop::{ControlFlow, EventLoop},
+    window::WindowBuilder,
+};
 use winit::{event::Event, event_loop::EventLoopProxy};
 
 const OUTPUT_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Bgra8UnormSrgb;
@@ -39,20 +44,20 @@ fn main() {
     };
     println!("Source : \n{}", source);
 
-    let event_loop = winit::event_loop::EventLoop::with_user_event();
-    let window = winit::window::WindowBuilder::new()
+    let event_loop = EventLoop::with_user_event();
+    let window = WindowBuilder::new()
         .with_decorations(true)
         .with_resizable(true)
         .with_transparent(false)
         .with_title("Nuance")
-        .with_inner_size(winit::dpi::PhysicalSize {
-            width: 400,
-            height: 300,
+        .with_inner_size(PhysicalSize {
+            width: 800,
+            height: 600,
         })
         .build(&event_loop)
         .unwrap();
 
-    let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
+    let instance = wgpu::Instance::new(BackendBit::PRIMARY);
     let surface = unsafe { instance.create_surface(&window) };
 
     let adapter =
@@ -90,7 +95,7 @@ fn main() {
         physical_height: size.height as u32,
         scale_factor: window.scale_factor(),
         font_definitions: FontDefinitions::default(),
-        style: Default::default(),
+        style: egui::Style::default(),
     });
 
     // We use the egui_wgpu_backend crate as the render backend.
@@ -132,7 +137,7 @@ fn main() {
                 }
                 .build();
 
-                egui::TopPanel::top("top_panel").show(&platform.context(), |ui| {
+                egui::SidePanel::left("params", 200.0).show(&platform.context(), |ui| {
                     if ui.button("Hello !").clicked() {
                         println!("Clicked !");
                     }
@@ -142,11 +147,12 @@ fn main() {
                         ui.add(
                             DragValue::f32(&mut slider.value)
                                 .prefix(format!("{}: ", slider.name))
-                                .clamp_range(slider.range.clone())
-                                .fixed_decimals(2)
-                                .speed(0.10),
+                                .clamp_range(slider.min..=slider.max)
+                                .max_decimals(3)
+                                .speed(slider.max / 600.0),
                         );
                     }
+                    ui.image(TextureId::User(0), egui::vec2(0, 0))
                 });
 
                 // End the UI frame. We could now handle the output and draw the UI with the backend.
