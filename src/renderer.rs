@@ -1,29 +1,44 @@
+use std::num::NonZeroU32;
+
 use anyhow::{Context, Result};
+use egui::ClippedMesh;
+use egui_wgpu_backend::ScreenDescriptor;
 use log::{debug, info};
 use wgpu::{
     include_spirv, Adapter, BackendBit, BlendState, Color, ColorTargetState, ColorWrite,
-    CommandEncoderDescriptor, CullMode, Device, Features, FragmentState, FrontFace, Instance,
-    Limits, LoadOp, MultisampleState, Operations, PipelineLayout, PipelineLayoutDescriptor,
-    PolygonMode, PowerPreference, PresentMode, PrimitiveState, PrimitiveTopology,
-    PushConstantRange, Queue, RenderPassColorAttachmentDescriptor, RenderPassDescriptor,
-    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderFlags, ShaderModule,
-    ShaderModuleDescriptor, ShaderSource, ShaderStage, Surface, SwapChain, SwapChainDescriptor,
-    TextureFormat, TextureUsage, VertexState,
+    CommandEncoderDescriptor, CullMode, Device, Extent3d, Features, FragmentState, FrontFace,
+    Instance, Limits, LoadOp, MultisampleState, Operations, PipelineLayout,
+    PipelineLayoutDescriptor, PolygonMode, PowerPreference, PresentMode, PrimitiveState,
+    PrimitiveTopology, PushConstantRange, Queue, RenderPassColorAttachmentDescriptor,
+    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
+    ShaderFlags, ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStage, Surface,
+    SwapChain, SwapChainDescriptor, Texture, TextureAspect, TextureDescriptor, TextureFormat,
+    TextureUsage, TextureViewDescriptor, TextureViewDimension, VertexState,
 };
 use winit::window::Window;
+
+pub struct GUIData<'a> {
+    pub texture: &'a egui::Texture,
+    pub paint_jobs: &'a [ClippedMesh],
+}
 
 pub struct Renderer {
     instance: Instance,
     adapter: Adapter,
     device: Device,
+
     queue: Queue,
     surface: Surface,
     format: TextureFormat,
     swapchain: SwapChain,
+
     pipeline_layout: PipelineLayout,
     pipeline: Option<RenderPipeline>,
     background_color: Color,
     vertex_shader: ShaderModule,
+    render_tex: Texture,
+
+    pub egui_rpass: egui_wgpu_backend::RenderPass,
 }
 
 impl Renderer {
@@ -57,7 +72,7 @@ impl Renderer {
             .await
             .context("Can't find a suitable adapter")?;
 
-        info!(
+        debug!(
             "picked adapter : {}: {:?} ({:?})",
             adapter.get_info().name,
             adapter.get_info().device_type,
@@ -71,15 +86,15 @@ impl Renderer {
                     label: Some("Gimme a device"),
                     features: Features::PUSH_CONSTANTS,
                     limits: Limits {
-                        max_bind_groups: 1,
+                        max_bind_groups: 2,
                         max_dynamic_uniform_buffers_per_pipeline_layout: 0,
                         max_dynamic_storage_buffers_per_pipeline_layout: 0,
-                        max_sampled_textures_per_shader_stage: 0,
-                        max_samplers_per_shader_stage: 0,
+                        max_sampled_textures_per_shader_stage: 1,
+                        max_samplers_per_shader_stage: 1,
                         max_storage_buffers_per_shader_stage: 0,
                         max_storage_textures_per_shader_stage: 0,
-                        max_uniform_buffers_per_shader_stage: 1,
-                        max_uniform_buffer_binding_size: 0,
+                        max_uniform_buffers_per_shader_stage: 2,
+                        max_uniform_buffer_binding_size: 16384,
                         max_push_constant_size: push_constants_size,
                     },
                 },
@@ -109,6 +124,21 @@ impl Renderer {
             device.create_swap_chain(&surface, &sc_desc)
         };
 
+        let render_tex_desc = TextureDescriptor {
+            label: Some("yay"),
+            size: Extent3d {
+                width: 600,
+                height: 600,
+                depth: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: format,
+            usage: TextureUsage::RENDER_ATTACHMENT | TextureUsage::SAMPLED,
+        };
+        let render_tex = device.create_texture(&render_tex_desc);
+
         // This describes the data we'll send to our gpu with our shaders
         // This is where we'll declare textures and other stuff.
         // Simple variables are passed by push constants.
@@ -130,6 +160,9 @@ impl Renderer {
 
         let vertex_shader = device.create_shader_module(&include_spirv!("shaders/screen.vert.spv"));
 
+        let mut egui_rpass = egui_wgpu_backend::RenderPass::new(&device, format);
+        egui_rpass.egui_texture_from_wgpu_texture(&device, &render_tex);
+
         Ok(Self {
             instance,
             adapter,
@@ -142,6 +175,8 @@ impl Renderer {
             pipeline: None,
             background_color: Color::BLACK,
             vertex_shader,
+            render_tex,
+            egui_rpass,
         })
     }
 
@@ -188,21 +223,23 @@ impl Renderer {
         );
     }
 
-    pub fn render(&self, push_constants: &[u8]) -> Result<()> {
+    pub fn render(&mut self, gui: GUIData, push_constants: &[u8]) -> Result<()> {
         // We use double buffering, so select the output texture
         let frame = self.swapchain.get_current_frame()?.output;
+        let view_desc = TextureViewDescriptor::default();
         // This pack a set of operations (render passes ...)
         // and send them to the gpu for completion
         let mut encoder = self
             .device
             .create_command_encoder(&CommandEncoderDescriptor { label: None });
         {
+            let render_tex_view = self.render_tex.create_view(&view_desc);
             // Our render pass :
             // Clears the buffer with the background color and then run the pipeline
             let mut _rpass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("main render pass"),
                 color_attachments: &[RenderPassColorAttachmentDescriptor {
-                    attachment: &frame.view,
+                    attachment: &render_tex_view,
                     resolve_target: None,
                     ops: Operations {
                         load: LoadOp::Clear(self.background_color),
@@ -224,6 +261,32 @@ impl Renderer {
                 _rpass.draw(0..3, 0..1);
             }
         }
+
+        // Upload all resources for the GPU.
+        let screen_descriptor = ScreenDescriptor {
+            physical_width: 800,
+            physical_height: 600,
+            scale_factor: 1.25,
+        };
+        self.egui_rpass
+            .update_texture(&self.device, &self.queue, gui.texture);
+        self.egui_rpass
+            .update_user_textures(&self.device, &self.queue);
+        self.egui_rpass.update_buffers(
+            &mut self.device,
+            &mut self.queue,
+            gui.paint_jobs,
+            &screen_descriptor,
+        );
+
+        // Record all render passes.
+        self.egui_rpass.execute(
+            &mut encoder,
+            &frame.view,
+            gui.paint_jobs,
+            &screen_descriptor,
+            Some(Color::BLACK),
+        );
 
         // Launch !
         self.queue.submit(Some(encoder.finish()));

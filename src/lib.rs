@@ -3,6 +3,10 @@ use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
+use chrono::Timelike;
+use egui::{ClippedMesh, DragValue, FontDefinitions, Style, TextureId};
+use egui_winit_platform::{Platform, PlatformDescriptor};
+use extractor::Param;
 use log::info;
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use wgpu::PowerPreference;
@@ -14,10 +18,10 @@ use crate::renderer::Renderer;
 use crate::shader_loader::ShaderLoader;
 use crate::types::{Globals, UVec2};
 
+pub mod extractor;
 pub mod renderer;
 pub mod shader_loader;
 pub mod types;
-pub mod extractor;
 
 #[derive(Debug)]
 pub enum Command {
@@ -30,13 +34,14 @@ pub enum Command {
     Exit,
 }
 
-struct Parameters {
+struct Settings {
     target_framerate: Duration,
     mouse_wheel_step: f32,
 }
 
 pub struct Shadyboi {
     window: Window,
+    egui_platform: Platform,
 
     shader_loader: ShaderLoader,
     watcher: RecommendedWatcher,
@@ -45,24 +50,33 @@ pub struct Shadyboi {
     renderer: Renderer,
 
     started: Instant,
-    params: Parameters,
+    settings: Settings,
     globals: Globals,
+    params: Vec<Param>,
 }
 
 impl Shadyboi {
     pub async fn init(window: Window, power_preference: PowerPreference) -> Result<Self> {
         let window_size = window.inner_size();
+        let scale_factor = window.scale_factor();
         let renderer =
             Renderer::new(&window, power_preference, mem::size_of::<Globals>() as u32).await?;
         let (tx, rx) = std::sync::mpsc::channel();
         Ok(Self {
             window,
+            egui_platform: Platform::new(PlatformDescriptor {
+                physical_width: window_size.width,
+                physical_height: window_size.height,
+                scale_factor: scale_factor,
+                font_definitions: FontDefinitions::default(),
+                style: Style::default(),
+            }),
             shader_loader: ShaderLoader::new(),
             watcher: watcher(tx, Duration::from_millis(200))?,
             watcher_rx: rx,
             renderer,
             started: Instant::now(),
-            params: Parameters {
+            settings: Settings {
                 target_framerate: Duration::from_secs_f32(1.0 / 30.0),
                 mouse_wheel_step: 0.1,
             },
@@ -74,6 +88,7 @@ impl Shadyboi {
                 time: 0.0,
                 frame: 0,
             },
+            params: Vec::new(),
         })
     }
 
@@ -137,7 +152,8 @@ impl Shadyboi {
                         curr_shader_file = None;
                     }
                     Command::TargetFps(new_fps) => {
-                        self.params.target_framerate = Duration::from_secs_f32(1.0 / new_fps as f32)
+                        self.settings.target_framerate =
+                            Duration::from_secs_f32(1.0 / new_fps as f32)
                     }
                     Command::Restart => {
                         info!("Restarting !");
@@ -169,7 +185,7 @@ impl Shadyboi {
                         ..
                     } => match delta {
                         MouseScrollDelta::LineDelta(_, value) => {
-                            self.globals.mouse_wheel += value * self.params.mouse_wheel_step;
+                            self.globals.mouse_wheel += value * self.settings.mouse_wheel_step;
                         }
                         MouseScrollDelta::PixelDelta(pos) => {
                             info!("{:?}", pos);
@@ -182,20 +198,27 @@ impl Shadyboi {
                 },
                 Event::MainEventsCleared => {
                     let frame_time = last_draw_time.elapsed();
-                    if frame_time >= self.params.target_framerate {
+                    if frame_time >= self.settings.target_framerate {
                         self.window.request_redraw();
                         last_draw_time = Instant::now();
                     } else {
                         // Sleep til next frame
                         *control_flow = ControlFlow::WaitUntil(
-                            Instant::now() + self.params.target_framerate - frame_time,
+                            Instant::now() + self.settings.target_framerate - frame_time,
                         );
                     }
                     self.globals.time = self.started.elapsed().as_secs_f32();
                 }
                 Event::RedrawRequested(_) => {
+                    let paint_jobs = self.render_gui();
                     self.renderer
-                        .render(bytemuck::bytes_of(&self.globals))
+                        .render(
+                            renderer::GUIData {
+                                texture: &self.egui_platform.context().texture(),
+                                paint_jobs: &paint_jobs,
+                            },
+                            bytemuck::bytes_of(&self.globals),
+                        )
                         .unwrap();
                     self.globals.frame += 1;
                 }
@@ -203,4 +226,38 @@ impl Shadyboi {
             }
         });
     }
+
+    fn render_gui(&mut self) -> Vec<ClippedMesh> {
+        self.egui_platform.begin_frame();
+
+        egui::SidePanel::left("params", 200.0).show(&self.egui_platform.context(), |ui| {
+            if ui.button("Hello !").clicked() {
+                println!("Clicked !");
+            }
+            ui.separator();
+
+            for param in self.params.iter_mut() {
+                ui.add(
+                    DragValue::f32(&mut param.value)
+                        .prefix(format!("{}: ", param.name))
+                        .clamp_range(param.min..=param.max)
+                        .max_decimals(3)
+                        .speed(param.max / 600.0),
+                );
+            }
+        });
+        egui::CentralPanel::default().show(&self.egui_platform.context(), |ui| {
+            ui.image(TextureId::User(0), egui::vec2(600.0, 600.0));
+        });
+
+        // End the UI frame. We could now handle the output and draw the UI with the backend.
+        let (_, paint_commands) = self.egui_platform.end_frame();
+        self.egui_platform.context().tessellate(paint_commands)
+    }
+}
+
+/// Time of day as seconds since midnight. Used for clock in demo app.
+pub fn seconds_since_midnight() -> f64 {
+    let time = chrono::Local::now().time();
+    time.num_seconds_from_midnight() as f64 + 1e-9 * (time.nanosecond() as f64)
 }

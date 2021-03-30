@@ -569,8 +569,7 @@ dependencies = [
 [[package]]
 name = "egui_wgpu_backend"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1296d3dd76a43816a556e85160b7f15c2191ec9cb2672e0c729c30383126b45f"
+source = "git+https://github.com/hasenbanck/egui_wgpu_backend#5f33cf76d952c67bdbe7bd4ed01023899d3ac996"
 dependencies = [
  "bytemuck",
  "epi",
@@ -1515,7 +1514,6 @@ dependencies = [
  "egui",
  "egui_wgpu_backend",
  "egui_winit_platform",
- "epi",
  "futures-executor",
  "glsl-lang",
  "log",
@@ -1990,9 +1988,9 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "syn"
-version = "1.0.67"
+version = "1.0.65"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6498a9efc342871f91cc2d0d694c674368b4ceb40f62b65a7a08c3792935e702"
+checksum = "f3a1d708c221c5a612956ef9f75b37e454e88d1f7b899fbd3a18d4252012d663"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2334,9 +2332,9 @@ dependencies = [
 
 [[package]]
 name = "wgpu"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c60007fc3748278a36b458d96f86105f43aa5f0e412b15a5f934950d61ec26a9"
+checksum = "79a0a0a63fac9492cfaf6e7e4bdf9729c128f1e94124b9e4cbc4004b8cb6d1d8"
 dependencies = [
  "arrayvec",
  "js-sys",
@@ -2344,6 +2342,7 @@ dependencies = [
  "parking_lot",
  "raw-window-handle",
  "smallvec",
+ "syn",
  "tracing",
  "wasm-bindgen",
  "wasm-bindgen-futures",

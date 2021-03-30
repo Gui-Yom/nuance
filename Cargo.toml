@@ -37,8 +37,8 @@ tui = { version = "0.14", default-features = false, features = ["crossterm"] }
 tui-logger = { version = "0.6" }
 # GUI
 egui = { version = "0.10" }
-epi = { version = "0.10" }
-egui_wgpu_backend = { version = "0.5" }
+#epi = { version = "0.10" }
+egui_wgpu_backend = { git = "https://github.com/hasenbanck/egui_wgpu_backend" } #version = 0.5 has problems
 egui_winit_platform = { version = "0.5" }
 chrono = { version = "0.4" }
 
