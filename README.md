@@ -31,11 +31,23 @@ shaders.
 The [GL_KHR_vulkan_glsl](https://github.com/KhronosGroup/GLSL/blob/master/extensions/khr/GL_KHR_vulkan_glsl.txt)
 extension is implicitly enabled. You can also use a shader already compiled to SpirV directly.
 
-### Globals
-
-Please include the following snippet in all your shaders to access those constants.
+Please include the standard header `Nuance` for convenience.
 
 ```glsl
+#include <Nuance>
+```
+
+### Globals
+
+The standard header `Nuance` includes definitions for some useful globals :
+
+```glsl
+#define NUANCE
+
+#version 460
+
+layout(location = 0) out vec4 fragColor;
+
 layout(push_constant) uniform Globals {
 // Window resolution
     uvec2 uResolution;
@@ -94,7 +106,6 @@ entire application build time.
 
 ## TODO
 
-- Include the globals push constants block in the standard <Nuance> header
 - Merge params uniform block with push_constant block
 - GUI with sliders (to interact with your shader values in realtime)
 - Error handling (currently it crashes if something goes wrong)

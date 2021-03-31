@@ -1,6 +1,6 @@
 use anyhow::Result;
 use log::{debug, info, LevelFilter};
-use simplelog::{Config, TermLogger};
+use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode};
 use wgpu::PowerPreference;
 use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
@@ -11,9 +11,11 @@ use nuance::{Command, Nuance};
 fn main() -> Result<()> {
     TermLogger::init(
         LevelFilter::Debug,
-        Config::default(),
-        simplelog::TerminalMode::Stdout,
-        simplelog::ColorChoice::Auto,
+        ConfigBuilder::new()
+            .add_filter_ignore_str("naga::front::spv")
+            .build(),
+        TerminalMode::Stdout,
+        ColorChoice::Auto,
     )?;
 
     info!("Starting up !");

@@ -131,12 +131,30 @@ impl ShaderLoader {
                 }
             }
             IncludeType::Standard => {
-                if name == "Shadertoy" {
+                if name == "Nuance" {
                     const STD: &str = r#"
-                    #define SHADERTOY
+                    #define NUANCE
+                    
+                    #version 460
+
+                    layout(location = 0) out vec4 fragColor;
+                    layout(push_constant) uniform Globals {
+                    // Window resolution
+                    uvec2 uResolution;
+                    // Mouse position
+                    uvec2 uMouse;
+                    // Mouse wheel
+                    float iMouseWheel;
+                    // Aspect ratio
+                    float fRatio;
+                    // Time in sec
+                    float uTime;
+                    // The number of frame we're at
+                    uint uFrame;
+                    };
                     "#;
                     Ok(ResolvedInclude {
-                        resolved_name: "SHADERTOY_BASE".to_string(),
+                        resolved_name: "NUANCE_STD".to_string(),
                         content: STD.to_string(),
                     })
                 } else {
