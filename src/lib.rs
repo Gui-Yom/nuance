@@ -3,16 +3,17 @@ use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use chrono::Timelike;
-use egui::{ClippedMesh, DragValue, FontDefinitions, Style, TextureId};
+use egui::{ClippedMesh, DragValue, FontDefinitions, Frame, Style, TextureId};
+use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::{Platform, PlatformDescriptor};
-use extractor::Param;
-use log::info;
+use log::{debug, info};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use wgpu::PowerPreference;
 use winit::event::{Event, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::Window;
+
+use extractor::Param;
 
 use crate::renderer::Renderer;
 use crate::shader_loader::ShaderLoader;
@@ -39,7 +40,7 @@ struct Settings {
     mouse_wheel_step: f32,
 }
 
-pub struct Shadyboi {
+pub struct Nuance {
     window: Window,
     egui_platform: Platform,
 
@@ -55,10 +56,14 @@ pub struct Shadyboi {
     params: Vec<Param>,
 }
 
-impl Shadyboi {
+impl Nuance {
     pub async fn init(window: Window, power_preference: PowerPreference) -> Result<Self> {
         let window_size = window.inner_size();
         let scale_factor = window.scale_factor();
+        debug!(
+            "window physical size : {:?}, scale factor : {}",
+            window_size, scale_factor
+        );
         let renderer =
             Renderer::new(&window, power_preference, mem::size_of::<Globals>() as u32).await?;
         let (tx, rx) = std::sync::mpsc::channel();
@@ -67,7 +72,7 @@ impl Shadyboi {
             egui_platform: Platform::new(PlatformDescriptor {
                 physical_width: window_size.width,
                 physical_height: window_size.height,
-                scale_factor: scale_factor,
+                scale_factor,
                 font_definitions: FontDefinitions::default(),
                 style: Style::default(),
             }),
@@ -81,10 +86,10 @@ impl Shadyboi {
                 mouse_wheel_step: 0.1,
             },
             globals: Globals {
-                resolution: UVec2::new(window_size.width, window_size.height),
+                resolution: UVec2::new(window_size.width - 200, window_size.height),
                 mouse: UVec2::zero(),
                 mouse_wheel: 0.0,
-                ratio: window_size.width as f32 / window_size.height as f32,
+                ratio: (window_size.width - 200) as f32 / window_size.height as f32,
                 time: 0.0,
                 frame: 0,
             },
@@ -101,7 +106,7 @@ impl Shadyboi {
         let proxy = event_loop.create_proxy();
 
         event_loop.run(move |event, _, control_flow| {
-            // Run this loop indefinitely
+            // Run this loop indefinitely by default
             *control_flow = ControlFlow::Poll;
 
             if let Ok(DebouncedEvent::Write(path)) = self.watcher_rx.try_recv() {
@@ -109,6 +114,8 @@ impl Shadyboi {
                     .send_event(Command::Load(path.to_str().unwrap().to_string()))
                     .unwrap();
             }
+
+            self.egui_platform.handle_event(&event);
 
             match event {
                 Event::UserEvent(cmd) => match cmd {
@@ -210,9 +217,17 @@ impl Shadyboi {
                     self.globals.time = self.started.elapsed().as_secs_f32();
                 }
                 Event::RedrawRequested(_) => {
+                    self.egui_platform
+                        .update_time(self.started.elapsed().as_secs_f64());
                     let paint_jobs = self.render_gui();
+                    let window_size = self.window.inner_size();
                     self.renderer
                         .render(
+                            ScreenDescriptor {
+                                physical_width: window_size.width,
+                                physical_height: window_size.height,
+                                scale_factor: self.window.scale_factor() as f32,
+                            },
                             renderer::GUIData {
                                 texture: &self.egui_platform.context().texture(),
                                 paint_jobs: &paint_jobs,
@@ -228,6 +243,7 @@ impl Shadyboi {
     }
 
     fn render_gui(&mut self) -> Vec<ClippedMesh> {
+        let window_size = self.window.inner_size();
         self.egui_platform.begin_frame();
 
         egui::SidePanel::left("params", 200.0).show(&self.egui_platform.context(), |ui| {
@@ -242,22 +258,25 @@ impl Shadyboi {
                         .prefix(format!("{}: ", param.name))
                         .clamp_range(param.min..=param.max)
                         .max_decimals(3)
-                        .speed(param.max / 600.0),
+                        .speed(param.max / (window_size.width - 200) as f32),
                 );
             }
         });
-        egui::CentralPanel::default().show(&self.egui_platform.context(), |ui| {
-            ui.image(TextureId::User(0), egui::vec2(600.0, 600.0));
-        });
+        egui::CentralPanel::default().frame(Frame::none()).show(
+            &self.egui_platform.context(),
+            |ui| {
+                ui.image(
+                    TextureId::User(0),
+                    egui::vec2(
+                        (window_size.width - 200) as f32 / 1.25,
+                        window_size.height as f32 / 1.25,
+                    ),
+                );
+            },
+        );
 
         // End the UI frame. We could now handle the output and draw the UI with the backend.
         let (_, paint_commands) = self.egui_platform.end_frame();
         self.egui_platform.context().tessellate(paint_commands)
     }
-}
-
-/// Time of day as seconds since midnight. Used for clock in demo app.
-pub fn seconds_since_midnight() -> f64 {
-    let time = chrono::Local::now().time();
-    time.num_seconds_from_midnight() as f64 + 1e-9 * (time.nanosecond() as f64)
 }

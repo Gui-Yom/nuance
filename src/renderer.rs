@@ -73,7 +73,7 @@ impl Renderer {
             .context("Can't find a suitable adapter")?;
 
         debug!(
-            "picked adapter : {}: {:?} ({:?})",
+            "picked : {}: {:?} ({:?})",
             adapter.get_info().name,
             adapter.get_info().device_type,
             adapter.get_info().backend
@@ -83,7 +83,7 @@ impl Renderer {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    label: Some("Gimme a device"),
+                    label: Some("device_request"),
                     features: Features::PUSH_CONSTANTS,
                     limits: Limits {
                         max_bind_groups: 2,
@@ -127,8 +127,8 @@ impl Renderer {
         let render_tex_desc = TextureDescriptor {
             label: Some("yay"),
             size: Extent3d {
-                width: 600,
-                height: 600,
+                width: window_size.width - 200,
+                height: window_size.height,
                 depth: 1,
             },
             mip_level_count: 1,
@@ -160,7 +160,9 @@ impl Renderer {
 
         let vertex_shader = device.create_shader_module(&include_spirv!("shaders/screen.vert.spv"));
 
+        // The egui renderer in its own render pass
         let mut egui_rpass = egui_wgpu_backend::RenderPass::new(&device, format);
+        // egui will need our render texture
         egui_rpass.egui_texture_from_wgpu_texture(&device, &render_tex);
 
         Ok(Self {
@@ -223,7 +225,12 @@ impl Renderer {
         );
     }
 
-    pub fn render(&mut self, gui: GUIData, push_constants: &[u8]) -> Result<()> {
+    pub fn render(
+        &mut self,
+        screen_desc: ScreenDescriptor,
+        gui: GUIData,
+        push_constants: &[u8],
+    ) -> Result<()> {
         // We use double buffering, so select the output texture
         let frame = self.swapchain.get_current_frame()?.output;
         let view_desc = TextureViewDescriptor::default();
@@ -263,11 +270,6 @@ impl Renderer {
         }
 
         // Upload all resources for the GPU.
-        let screen_descriptor = ScreenDescriptor {
-            physical_width: 800,
-            physical_height: 600,
-            scale_factor: 1.25,
-        };
         self.egui_rpass
             .update_texture(&self.device, &self.queue, gui.texture);
         self.egui_rpass
@@ -276,7 +278,7 @@ impl Renderer {
             &mut self.device,
             &mut self.queue,
             gui.paint_jobs,
-            &screen_descriptor,
+            &screen_desc,
         );
 
         // Record all render passes.
@@ -284,7 +286,7 @@ impl Renderer {
             &mut encoder,
             &frame.view,
             gui.paint_jobs,
-            &screen_descriptor,
+            &screen_desc,
             Some(Color::BLACK),
         );
 

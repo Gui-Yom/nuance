@@ -31,16 +31,12 @@ bytemuck = { version = "1", features = ["derive"] }
 notify = { version = "4.0" }
 # logger api
 log = { version = "0.4", features = ["std"] }
-# Terminal UI
-crossterm = { version = "0.18" }
-tui = { version = "0.14", default-features = false, features = ["crossterm"] }
-tui-logger = { version = "0.6" }
+simplelog = { version = "0.10" }
 # GUI
 egui = { version = "0.10" }
 #epi = { version = "0.10" }
 egui_wgpu_backend = { git = "https://github.com/hasenbanck/egui_wgpu_backend" } #version = 0.5 has problems
 egui_winit_platform = { version = "0.5" }
-chrono = { version = "0.4" }
 
 [patch.crates-io]
 lang-util = { git = "https://github.com/vtavernier/glsl-lang" }
