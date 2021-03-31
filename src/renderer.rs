@@ -5,11 +5,13 @@ use egui::ClippedMesh;
 use egui_wgpu_backend::ScreenDescriptor;
 use log::{debug, info};
 use wgpu::{
-    include_spirv, Adapter, BackendBit, BlendState, Color, ColorTargetState, ColorWrite,
+    include_spirv, Adapter, BackendBit, BindGroup, BindGroupDescriptor, BindGroupEntry,
+    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
+    Buffer, BufferBindingType, BufferDescriptor, BufferUsage, Color, ColorTargetState, ColorWrite,
     CommandEncoderDescriptor, CullMode, Device, Extent3d, Features, FragmentState, FrontFace,
     Instance, Limits, LoadOp, MultisampleState, Operations, PipelineLayout,
     PipelineLayoutDescriptor, PolygonMode, PowerPreference, PresentMode, PrimitiveState,
-    PrimitiveTopology, PushConstantRange, Queue, RenderPassColorAttachmentDescriptor,
+    PrimitiveTopology, PushConstantRange, Queue, RenderBundle, RenderPassColorAttachmentDescriptor,
     RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
     ShaderFlags, ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStage, Surface,
     SwapChain, SwapChainDescriptor, Texture, TextureAspect, TextureDescriptor, TextureFormat,
@@ -34,6 +36,8 @@ pub struct Renderer {
 
     pipeline_layout: PipelineLayout,
     pipeline: Option<RenderPipeline>,
+    bind_group: BindGroup,
+    params_buffer: Buffer,
     background_color: Color,
     vertex_shader: ShaderModule,
     render_tex: Texture,
@@ -142,16 +146,45 @@ impl Renderer {
         // This describes the data we'll send to our gpu with our shaders
         // This is where we'll declare textures and other stuff.
         // Simple variables are passed by push constants.
-        /*
+
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
             label: Some("main bind group layout"),
-            entries: &[],
-        });*/
+            entries: &[BindGroupLayoutEntry {
+                binding: 0,
+                visibility: ShaderStage::FRAGMENT,
+                ty: BindingType::Buffer {
+                    ty: BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+
+        let params_buffer = device.create_buffer(&BufferDescriptor {
+            label: Some("params ubo"),
+            size: 12,
+            usage: BufferUsage::UNIFORM | BufferUsage::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("main bind group"),
+            layout: &bind_group_layout,
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: BindingResource::Buffer {
+                    buffer: &params_buffer,
+                    offset: 0,
+                    size: None,
+                },
+            }],
+        });
 
         // This describes the data coming to a pipeline
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("main compute layout"),
-            bind_group_layouts: &[/*&bind_group_layout*/],
+            bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[PushConstantRange {
                 stages: ShaderStage::FRAGMENT,
                 range: 0..push_constants_size,
@@ -175,6 +208,8 @@ impl Renderer {
             swapchain,
             pipeline_layout,
             pipeline: None,
+            bind_group,
+            params_buffer,
             background_color: Color::BLACK,
             vertex_shader,
             render_tex,
@@ -229,13 +264,18 @@ impl Renderer {
         &mut self,
         screen_desc: ScreenDescriptor,
         gui: GUIData,
+        params_buffer: &[u8],
         push_constants: &[u8],
     ) -> Result<()> {
         // We use double buffering, so select the output texture
         let frame = self.swapchain.get_current_frame()?.output;
         let view_desc = TextureViewDescriptor::default();
-        // This pack a set of operations (render passes ...)
-        // and send them to the gpu for completion
+
+        // Update the params buffer on the gpu side
+        self.queue
+            .write_buffer(&self.params_buffer, 0, params_buffer);
+
+        // This pack a set of render passes for the gpu to execute
         let mut encoder = self
             .device
             .create_command_encoder(&CommandEncoderDescriptor { label: None });
@@ -243,7 +283,7 @@ impl Renderer {
             let render_tex_view = self.render_tex.create_view(&view_desc);
             // Our render pass :
             // Clears the buffer with the background color and then run the pipeline
-            let mut _rpass = encoder.begin_render_pass(&RenderPassDescriptor {
+            let mut rpass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("main render pass"),
                 color_attachments: &[RenderPassColorAttachmentDescriptor {
                     attachment: &render_tex_view,
@@ -256,16 +296,19 @@ impl Renderer {
                 depth_stencil_attachment: None,
             });
             if self.pipeline.is_some() {
-                _rpass.set_pipeline(self.pipeline.as_ref().unwrap());
+                // Bind buffers to shaders
+                rpass.set_bind_group(0, &self.bind_group, &[]);
+
+                rpass.set_pipeline(self.pipeline.as_ref().unwrap());
 
                 // Associated data
                 //_rpass.set_bind_group(0, &bind_group, &[]);
                 // Push constants mapped to uniform block
-                _rpass.set_push_constants(ShaderStage::FRAGMENT, 0, push_constants);
+                rpass.set_push_constants(ShaderStage::FRAGMENT, 0, push_constants);
 
                 // We have no vertices, they are generated by the vertex shader in place.
                 // But we act like we have 3, so the gpu calls the vertex shader 3 times.
-                _rpass.draw(0..3, 0..1);
+                rpass.draw(0..3, 0..1);
             }
         }
 

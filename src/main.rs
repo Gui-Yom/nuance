@@ -40,7 +40,7 @@ fn main() -> Result<()> {
 
     event_loop
         .create_proxy()
-        .send_event(Command::Load("shaders/color.frag".to_string()))?;
+        .send_event(Command::Load("shaders/sliders.frag".to_string()))?;
 
     // Going async !
     let app = futures_executor::block_on(Nuance::init(window, power_preference))?;

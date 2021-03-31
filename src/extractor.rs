@@ -54,8 +54,6 @@ impl VisitorMut for Extractor {
                         "min" => slider.min,
                         _ => panic!("No such field exist !"),
                     })
-                } else {
-                    debug!("no slider with name '{}' exist", name);
                 }
                 return Visit::Parent;
             }

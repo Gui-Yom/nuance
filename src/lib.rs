@@ -122,9 +122,11 @@ impl Nuance {
                     Command::Load(path) => {
                         info!("Reloading !");
                         let reload_start = Instant::now();
-                        self.renderer.new_pipeline_from_shader_source(
-                            self.shader_loader.load_shader(&path).unwrap(),
-                        );
+                        let (shader, params) = self.shader_loader.load_shader(&path).unwrap();
+                        if params.is_some() {
+                            self.params = params.unwrap();
+                        }
+                        self.renderer.new_pipeline_from_shader_source(shader);
                         // Reset the running globals
                         self.globals.frame = 0;
                         self.globals.time = 0.0;
@@ -232,6 +234,7 @@ impl Nuance {
                                 texture: &self.egui_platform.context().texture(),
                                 paint_jobs: &paint_jobs,
                             },
+                            &self.params.to_glsl(),
                             bytemuck::bytes_of(&self.globals),
                         )
                         .unwrap();
@@ -278,5 +281,32 @@ impl Nuance {
         // End the UI frame. We could now handle the output and draw the UI with the backend.
         let (_, paint_commands) = self.egui_platform.end_frame();
         self.egui_platform.context().tessellate(paint_commands)
+    }
+}
+
+trait ToGlsl {
+    fn to_glsl(&self) -> Vec<u8>;
+}
+
+impl ToGlsl for Vec<Param> {
+    fn to_glsl(&self) -> Vec<u8> {
+        let mut floats = Vec::new();
+        for param in self.iter() {
+            floats.push(param.value);
+        }
+        let bytes = unsafe {
+            let ratio = mem::size_of::<f32>() / mem::size_of::<u8>();
+
+            let length = floats.len() * ratio;
+            let capacity = floats.capacity() * ratio;
+            let ptr = floats.as_mut_ptr() as *mut u8;
+
+            // Don't run the destructor for vec32
+            mem::forget(floats);
+
+            // Construct new Vec
+            Vec::from_raw_parts(ptr, length, capacity)
+        };
+        bytes
     }
 }
