@@ -4,6 +4,13 @@ version = "0.1.0"
 authors = ["Guillaume Anthouard <guillaume.anthouard@hotmail.fr>"]
 edition = "2018"
 include = ["src/**/*", "LICENSE", "README.md"]
+description = "A tool to run your shaders on the gpu. Also a good demo application for wgpu-rs."
+homepage = "https://github.com/Gui-Yom/nuance"
+repository = "https://github.com/Gui-Yom/nuance"
+license = "Apache-2.0"
+readme = "README.md"
+keywords = ["shaders", "glsl", "graphics", "visualization", "wgpu"]
+categories = ["graphics", "rendering", "visualization"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -22,7 +29,7 @@ futures-executor = { version = "0.3" }
 # glsl to spirv
 shaderc = { version = "0.7" }
 # parse glsl
-glsl-lang = { git = "https://github.com/vtavernier/glsl-lang" }
+glsl-lang = { git = "https://github.com/vtavernier/glsl-lang", rev = "f06e4afc3e82ca40216a31be78e504501cd97cab", version = "0.1.0" }
 # Error types
 anyhow = { version = "1" }
 # Converting types to bytes
@@ -34,10 +41,10 @@ log = { version = "0.4", features = ["std"] }
 simplelog = { version = "0.10" }
 # GUI
 egui = { version = "0.10" }
-#epi = { version = "0.10" }
-egui_wgpu_backend = { git = "https://github.com/hasenbanck/egui_wgpu_backend" } #version = 0.5 has problems
+egui_wgpu_backend = { git = "https://github.com/hasenbanck/egui_wgpu_backend", rev = "5f33cf76d952c67bdbe7bd4ed01023899d3ac996", version = "0.5" } #version = 0.5 has problems
 egui_winit_platform = { version = "0.5" }
 
+# Because glsl-lang helper crates aren't published on crates.io despite what's specified in their configurations
 [patch.crates-io]
 lang-util = { git = "https://github.com/vtavernier/glsl-lang" }
 lang-util-derive = { git = "https://github.com/vtavernier/glsl-lang" }

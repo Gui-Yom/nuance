@@ -2,6 +2,16 @@
 
 A nice tool to run your shaders on the gpu. Also a good demo for wgpu-rs.
 
+## Installation
+
+Install with cargo or download a prebuilt binary for windows in the release page.
+
+```shell
+$ cargo install --locked nuance
+```
+
+See [Development](#Development) when building from source.
+
 ## Usage
 
 ```shell
@@ -12,16 +22,6 @@ $ nuance shaders/color.frag
 
 By default it will use the first available low-power gpu that match the criteria. Launch
 with `nuance.exe -H` to force the usage of a discrete high-power gpu.
-
-### Commands
-
-- `load <file>` to load a shader
-- `reload` to reload the currently loaded shader
-- `watch <file>` to watch for changes to `file` and reload the shader automatically
-- `unwatch` to stop watching for changes
-- `framerate <target_fps>` will limit the fps to `target_fps`, default to 30
-- `restart` to reset the globals
-- `exit`
 
 ## Shaders
 
@@ -106,8 +106,8 @@ entire application build time.
 
 ## TODO
 
+- Reimplement commands with the GUI
 - Merge params uniform block with push_constant block
-- GUI with sliders (to interact with your shader values in realtime)
 - Error handling (currently it crashes if something goes wrong)
 - GPU hot switch (for when you see that you need some extra gpu juice)
 - Bind textures as input
