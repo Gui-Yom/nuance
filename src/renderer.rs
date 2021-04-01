@@ -49,6 +49,7 @@ impl Renderer {
     pub async fn new(
         window: &Window,
         power_preference: PowerPreference,
+        render_size: (u32, u32),
         push_constants_size: u32,
     ) -> Result<Self> {
         let instance = Instance::new(BackendBit::PRIMARY);
@@ -131,8 +132,8 @@ impl Renderer {
         let render_tex_desc = TextureDescriptor {
             label: Some("yay"),
             size: Extent3d {
-                width: window_size.width - 200,
-                height: window_size.height,
+                width: render_size.0,
+                height: render_size.1,
                 depth: 1,
             },
             mip_level_count: 1,

@@ -3,14 +3,14 @@ use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use egui::{ClippedMesh, DragValue, FontDefinitions, Frame, Style, TextureId};
+use egui::{ClippedMesh, DragValue, FontDefinitions, Frame, Sense, Style, TextureId};
 use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::{Platform, PlatformDescriptor};
 use log::{debug, info};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use wgpu::PowerPreference;
 use winit::event::{Event, MouseScrollDelta, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
+use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::Window;
 
 use extractor::Param;
@@ -38,6 +38,7 @@ pub enum Command {
 struct Settings {
     target_framerate: Duration,
     mouse_wheel_step: f32,
+    ui_width: f32,
 }
 
 pub struct Nuance {
@@ -50,7 +51,7 @@ pub struct Nuance {
 
     renderer: Renderer,
 
-    started: Instant,
+    sim_time: Instant,
     settings: Settings,
     globals: Globals,
     params: Vec<Param>,
@@ -60,13 +61,27 @@ impl Nuance {
     pub async fn init(window: Window, power_preference: PowerPreference) -> Result<Self> {
         let window_size = window.inner_size();
         let scale_factor = window.scale_factor();
+
+        let ui_width = 180.0;
+        let mut canvas_size = window_size.clone();
+        canvas_size.width -= ui_width as u32;
+
         debug!(
             "window physical size : {:?}, scale factor : {}",
             window_size, scale_factor
         );
-        let renderer =
-            Renderer::new(&window, power_preference, mem::size_of::<Globals>() as u32).await?;
+        debug!("canvas size : {:?}", canvas_size);
+
+        let renderer = Renderer::new(
+            &window,
+            power_preference,
+            canvas_size.into(),
+            mem::size_of::<Globals>() as u32,
+        )
+        .await?;
+
         let (tx, rx) = std::sync::mpsc::channel();
+
         Ok(Self {
             window,
             egui_platform: Platform::new(PlatformDescriptor {
@@ -80,16 +95,17 @@ impl Nuance {
             watcher: watcher(tx, Duration::from_millis(200))?,
             watcher_rx: rx,
             renderer,
-            started: Instant::now(),
+            sim_time: Instant::now(),
             settings: Settings {
                 target_framerate: Duration::from_secs_f32(1.0 / 30.0),
                 mouse_wheel_step: 0.1,
+                ui_width,
             },
             globals: Globals {
-                resolution: UVec2::new(window_size.width - 200, window_size.height),
+                resolution: UVec2::new(canvas_size.width, canvas_size.height),
                 mouse: UVec2::zero(),
                 mouse_wheel: 0.0,
-                ratio: (window_size.width - 200) as f32 / window_size.height as f32,
+                ratio: (canvas_size.width) as f32 / canvas_size.height as f32,
                 time: 0.0,
                 frame: 0,
             },
@@ -104,6 +120,8 @@ impl Nuance {
         let mut curr_shader_file = None;
         // To send user events to the event loop
         let proxy = event_loop.create_proxy();
+
+        let app_time = Instant::now();
 
         event_loop.run(move |event, _, control_flow| {
             // Run this loop indefinitely by default
@@ -130,7 +148,7 @@ impl Nuance {
                         // Reset the running globals
                         self.globals.frame = 0;
                         self.globals.time = 0.0;
-                        self.started = Instant::now();
+                        self.sim_time = Instant::now();
                         curr_shader_file = Some(path);
 
                         info!(
@@ -170,7 +188,7 @@ impl Nuance {
                         self.globals.frame = 0;
                         self.globals.time = 0.0;
                         self.globals.mouse_wheel = 0.0;
-                        self.started = Instant::now();
+                        self.sim_time = Instant::now();
                     }
                     Command::Exit => {
                         *control_flow = ControlFlow::Exit;
@@ -183,10 +201,14 @@ impl Nuance {
                         ..
                     } => {
                         let size = self.window.inner_size();
-                        self.globals.mouse = UVec2::new(
-                            position.x.clamp(0.0, size.width as f64) as u32,
-                            position.y.clamp(0.0, size.height as f64) as u32,
-                        );
+                        if position.x > self.settings.ui_width as f64 {
+                            self.globals.mouse = UVec2::new(
+                                (position.x - self.settings.ui_width as f64)
+                                    .clamp(0.0, size.width as f64)
+                                    as u32,
+                                position.y.clamp(0.0, size.height as f64) as u32,
+                            );
+                        }
                     }
                     WindowEvent::MouseWheel {
                         device_id: _device_id,
@@ -216,12 +238,12 @@ impl Nuance {
                             Instant::now() + self.settings.target_framerate - frame_time,
                         );
                     }
-                    self.globals.time = self.started.elapsed().as_secs_f32();
+                    self.globals.time = self.sim_time.elapsed().as_secs_f32();
                 }
                 Event::RedrawRequested(_) => {
                     self.egui_platform
-                        .update_time(self.started.elapsed().as_secs_f64());
-                    let paint_jobs = self.render_gui();
+                        .update_time(app_time.elapsed().as_secs_f64());
+                    let paint_jobs = self.render_gui(&proxy);
                     let window_size = self.window.inner_size();
                     self.renderer
                         .render(
@@ -245,33 +267,73 @@ impl Nuance {
         });
     }
 
-    fn render_gui(&mut self) -> Vec<ClippedMesh> {
+    fn render_gui(&mut self, proxy: &EventLoopProxy<Command>) -> Vec<ClippedMesh> {
         let window_size = self.window.inner_size();
         self.egui_platform.begin_frame();
 
-        egui::SidePanel::left("params", 200.0).show(&self.egui_platform.context(), |ui| {
-            if ui.button("Hello !").clicked() {
-                println!("Clicked !");
-            }
-            ui.separator();
+        let mut framerate = (1.0 / self.settings.target_framerate.as_secs_f32()).round() as u32;
 
-            for param in self.params.iter_mut() {
+        egui::SidePanel::left("params", self.settings.ui_width).show(
+            &self.egui_platform.context(),
+            |ui| {
+                ui.set_width(self.settings.ui_width);
+
+                ui.label(format!(
+                    "resolution : {:.0}x{:.0} px",
+                    self.globals.resolution.x, self.globals.resolution.y
+                ));
+                ui.label(format!(
+                    "mouse : ({:.0}, {:.0}) px",
+                    self.globals.mouse.x, self.globals.mouse.y
+                ));
+                ui.label(format!("mouse wheel : {:.1}", self.globals.mouse_wheel));
+                ui.label(format!("time : {:.3} s", self.globals.time));
+                ui.label(format!("frame : {}", self.globals.frame));
+
+                if ui.small_button("Reset").clicked() {
+                    proxy.send_event(Command::Restart);
+                }
+
+                ui.separator();
+
+                ui.label("Settings");
+
                 ui.add(
-                    DragValue::f32(&mut param.value)
-                        .prefix(format!("{}: ", param.name))
-                        .clamp_range(param.min..=param.max)
-                        .max_decimals(3)
-                        .speed(param.max / (window_size.width - 200) as f32),
+                    DragValue::u32(&mut framerate)
+                        .prefix("framerate: ")
+                        .clamp_range(4.0..=120.0)
+                        .max_decimals(0)
+                        .speed(0.1),
                 );
-            }
-        });
+                ui.add(
+                    DragValue::f32(&mut self.settings.mouse_wheel_step)
+                        .prefix("mouse wheel inc : ")
+                        .clamp_range(-100.0..=100.0)
+                        .max_decimals(3)
+                        .speed(0.01),
+                );
+
+                ui.separator();
+
+                ui.label("Params");
+                for param in self.params.iter_mut() {
+                    ui.add(
+                        DragValue::f32(&mut param.value)
+                            .prefix(format!("{}: ", param.name))
+                            .clamp_range(param.min..=param.max)
+                            .max_decimals(3)
+                            .speed(param.max / (window_size.width as f32 - self.settings.ui_width)),
+                    );
+                }
+            },
+        );
         egui::CentralPanel::default().frame(Frame::none()).show(
             &self.egui_platform.context(),
             |ui| {
                 ui.image(
                     TextureId::User(0),
                     egui::vec2(
-                        (window_size.width - 200) as f32 / 1.25,
+                        (window_size.width as f32 - self.settings.ui_width) / 1.25,
                         window_size.height as f32 / 1.25,
                     ),
                 );
@@ -280,6 +342,9 @@ impl Nuance {
 
         // End the UI frame. We could now handle the output and draw the UI with the backend.
         let (_, paint_commands) = self.egui_platform.end_frame();
+
+        self.settings.target_framerate = Duration::from_secs_f32(1.0 / framerate as f32);
+
         self.egui_platform.context().tessellate(paint_commands)
     }
 }
@@ -290,10 +355,13 @@ trait ToGlsl {
 
 impl ToGlsl for Vec<Param> {
     fn to_glsl(&self) -> Vec<u8> {
+        // We put our values together
         let mut floats = Vec::new();
         for param in self.iter() {
             floats.push(param.value);
         }
+        // We reinterpret our floats to bytes
+        // FIXME probably won't work for more complex types
         let bytes = unsafe {
             let ratio = mem::size_of::<f32>() / mem::size_of::<u8>();
 
