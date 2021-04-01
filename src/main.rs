@@ -9,6 +9,19 @@ use winit::{dpi::LogicalSize, event_loop};
 use nuance::{Command, Nuance};
 
 fn main() -> Result<()> {
+    let mut power_preference = PowerPreference::LowPower;
+    let mut shader = None;
+    for arg in std::env::args() {
+        match arg.as_str() {
+            "-H" => {
+                power_preference = PowerPreference::HighPerformance;
+            }
+            any => {
+                shader = Some(arg);
+            }
+        }
+    }
+
     TermLogger::init(
         LevelFilter::Debug,
         ConfigBuilder::new()
@@ -30,17 +43,11 @@ fn main() -> Result<()> {
         .with_visible(true);
     let window = builder.build(&event_loop)?;
 
-    // GPU power preference
-    let args: Vec<String> = std::env::args().collect();
-    let power_preference = if args.contains(&"-H".to_string()) {
-        PowerPreference::HighPerformance
-    } else {
-        PowerPreference::LowPower
-    };
-
-    event_loop
-        .create_proxy()
-        .send_event(Command::Load("shaders/sliders.frag".to_string()))?;
+    if let Some(shader) = shader {
+        event_loop
+            .create_proxy()
+            .send_event(Command::Load(shader))?;
+    }
 
     // Going async !
     let app = futures_executor::block_on(Nuance::init(window, power_preference))?;

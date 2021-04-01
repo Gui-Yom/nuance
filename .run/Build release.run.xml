@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Build release" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+  <configuration default="false" name="Build release [native]" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
     <option name="command" value="build --release -- -C target-cpu=native" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <option name="channel" value="DEFAULT" />
