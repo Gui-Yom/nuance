@@ -3,7 +3,7 @@ use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use egui::{ClippedMesh, DragValue, FontDefinitions, Frame, Sense, Style, TextureId};
+use egui::{ClippedMesh, DragValue, FontDefinitions, Frame, Style, TextureId};
 use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::{Platform, PlatformDescriptor};
 use log::{debug, info};
@@ -63,7 +63,7 @@ impl Nuance {
         let scale_factor = window.scale_factor();
 
         let ui_width = 180.0;
-        let mut canvas_size = window_size.clone();
+        let mut canvas_size = window_size;
         canvas_size.width -= ui_width as u32;
 
         debug!(
@@ -141,9 +141,11 @@ impl Nuance {
                         info!("Reloading !");
                         let reload_start = Instant::now();
                         let (shader, params) = self.shader_loader.load_shader(&path).unwrap();
-                        if params.is_some() {
-                            self.params = params.unwrap();
-                        }
+                        self.params = if let Some(params) = params {
+                            params
+                        } else {
+                            Vec::new()
+                        };
                         self.renderer.new_pipeline_from_shader_source(shader);
                         // Reset the running globals
                         self.globals.frame = 0;
@@ -252,7 +254,7 @@ impl Nuance {
                                 physical_height: window_size.height,
                                 scale_factor: self.window.scale_factor() as f32,
                             },
-                            renderer::GUIData {
+                            renderer::GuiData {
                                 texture: &self.egui_platform.context().texture(),
                                 paint_jobs: &paint_jobs,
                             },
@@ -291,7 +293,7 @@ impl Nuance {
                 ui.label(format!("frame : {}", self.globals.frame));
 
                 if ui.small_button("Reset").clicked() {
-                    proxy.send_event(Command::Restart);
+                    proxy.send_event(Command::Restart).unwrap();
                 }
 
                 ui.separator();
@@ -299,14 +301,14 @@ impl Nuance {
                 ui.label("Settings");
 
                 ui.add(
-                    DragValue::u32(&mut framerate)
+                    DragValue::new(&mut framerate)
                         .prefix("framerate: ")
                         .clamp_range(4.0..=120.0)
                         .max_decimals(0)
                         .speed(0.1),
                 );
                 ui.add(
-                    DragValue::f32(&mut self.settings.mouse_wheel_step)
+                    DragValue::new(&mut self.settings.mouse_wheel_step)
                         .prefix("mouse wheel inc : ")
                         .clamp_range(-100.0..=100.0)
                         .max_decimals(3)
@@ -318,7 +320,7 @@ impl Nuance {
                 ui.label("Params");
                 for param in self.params.iter_mut() {
                     ui.add(
-                        DragValue::f32(&mut param.value)
+                        DragValue::new(&mut param.value)
                             .prefix(format!("{}: ", param.name))
                             .clamp_range(param.min..=param.max)
                             .max_decimals(3)
@@ -362,7 +364,7 @@ impl ToGlsl for Vec<Param> {
         }
         // We reinterpret our floats to bytes
         // FIXME probably won't work for more complex types
-        let bytes = unsafe {
+        unsafe {
             let ratio = mem::size_of::<f32>() / mem::size_of::<u8>();
 
             let length = floats.len() * ratio;
@@ -374,7 +376,6 @@ impl ToGlsl for Vec<Param> {
 
             // Construct new Vec
             Vec::from_raw_parts(ptr, length, capacity)
-        };
-        bytes
+        }
     }
 }

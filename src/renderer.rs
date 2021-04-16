@@ -1,9 +1,7 @@
-use std::num::NonZeroU32;
-
 use anyhow::{Context, Result};
 use egui::ClippedMesh;
 use egui_wgpu_backend::ScreenDescriptor;
-use log::{debug, info};
+use log::debug;
 use wgpu::{
     include_spirv, Adapter, BackendBit, BindGroup, BindGroupDescriptor, BindGroupEntry,
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
@@ -11,25 +9,28 @@ use wgpu::{
     CommandEncoderDescriptor, CullMode, Device, Extent3d, Features, FragmentState, FrontFace,
     Instance, Limits, LoadOp, MultisampleState, Operations, PipelineLayout,
     PipelineLayoutDescriptor, PolygonMode, PowerPreference, PresentMode, PrimitiveState,
-    PrimitiveTopology, PushConstantRange, Queue, RenderBundle, RenderPassColorAttachmentDescriptor,
+    PrimitiveTopology, PushConstantRange, Queue, RenderPassColorAttachmentDescriptor,
     RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
     ShaderFlags, ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStage, Surface,
-    SwapChain, SwapChainDescriptor, Texture, TextureAspect, TextureDescriptor, TextureFormat,
-    TextureUsage, TextureViewDescriptor, TextureViewDimension, VertexState,
+    SwapChain, SwapChainDescriptor, Texture, TextureDescriptor, TextureFormat, TextureUsage,
+    TextureViewDescriptor, VertexState,
 };
 use winit::window::Window;
 
-pub struct GUIData<'a> {
+pub struct GuiData<'a> {
     pub texture: &'a egui::Texture,
     pub paint_jobs: &'a [ClippedMesh],
 }
 
 pub struct Renderer {
+    #[allow(dead_code)]
     instance: Instance,
+    #[allow(dead_code)]
     adapter: Adapter,
     device: Device,
 
     queue: Queue,
+    #[allow(dead_code)]
     surface: Surface,
     format: TextureFormat,
     swapchain: SwapChain,
@@ -139,7 +140,7 @@ impl Renderer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: format,
+            format,
             usage: TextureUsage::RENDER_ATTACHMENT | TextureUsage::SAMPLED,
         };
         let render_tex = device.create_texture(&render_tex_desc);
@@ -264,7 +265,7 @@ impl Renderer {
     pub fn render(
         &mut self,
         screen_desc: ScreenDescriptor,
-        gui: GUIData,
+        gui: GuiData,
         params_buffer: &[u8],
         push_constants: &[u8],
     ) -> Result<()> {
@@ -318,12 +319,8 @@ impl Renderer {
             .update_texture(&self.device, &self.queue, gui.texture);
         self.egui_rpass
             .update_user_textures(&self.device, &self.queue);
-        self.egui_rpass.update_buffers(
-            &mut self.device,
-            &mut self.queue,
-            gui.paint_jobs,
-            &screen_desc,
-        );
+        self.egui_rpass
+            .update_buffers(&self.device, &self.queue, gui.paint_jobs, &screen_desc);
 
         // Record all render passes.
         self.egui_rpass.execute(

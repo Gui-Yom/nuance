@@ -1,10 +1,10 @@
 use anyhow::Result;
-use log::{debug, info, LevelFilter};
+use log::{info, LevelFilter};
 use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode};
 use wgpu::PowerPreference;
+use winit::dpi::LogicalSize;
 use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
-use winit::{dpi::LogicalSize, event_loop};
 
 use nuance::{Command, Nuance};
 
@@ -16,7 +16,7 @@ fn main() -> Result<()> {
             "-H" => {
                 power_preference = PowerPreference::HighPerformance;
             }
-            any => {
+            _ => {
                 shader = Some(arg);
             }
         }

@@ -21,30 +21,25 @@ codegen-units = 4
 
 [dependencies]
 # GPU API
-wgpu = { version = "0.7" }
+wgpu = "0.7"
 # Windowing
-winit = { version = "0.24" }
+winit = "0.24"
 # Async runtime
-futures-executor = { version = "0.3" }
+futures-executor = "0.3"
 # glsl to spirv
-shaderc = { version = "0.7" }
+shaderc = "0.7"
 # parse glsl
-glsl-lang = { git = "https://github.com/vtavernier/glsl-lang", rev = "f06e4afc3e82ca40216a31be78e504501cd97cab", version = "0.1.0" }
+glsl-lang = "0.1"
 # Error types
-anyhow = { version = "1" }
+anyhow = "1"
 # Converting types to bytes
 bytemuck = { version = "1", features = ["derive"] }
 # File watcher
-notify = { version = "4.0" }
+notify = "4"
 # logger api
 log = { version = "0.4", features = ["std"] }
-simplelog = { version = "0.10" }
+simplelog = "0.10"
 # GUI
-egui = { version = "0.10" }
-egui_wgpu_backend = { git = "https://github.com/hasenbanck/egui_wgpu_backend", rev = "5f33cf76d952c67bdbe7bd4ed01023899d3ac996", version = "0.5" } #version = 0.5 has problems
-egui_winit_platform = { version = "0.5" }
-
-# Because glsl-lang helper crates aren't published on crates.io despite what's specified in their configurations
-[patch.crates-io]
-lang-util = { git = "https://github.com/vtavernier/glsl-lang" }
-lang-util-derive = { git = "https://github.com/vtavernier/glsl-lang" }
+egui = "0.11"
+egui_wgpu_backend = { version = "0.6" }
+egui_winit_platform = "0.6"

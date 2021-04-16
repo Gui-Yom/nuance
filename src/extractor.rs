@@ -12,7 +12,7 @@ use glsl_lang::{
     transpiler::glsl::FormattingState,
     visitor::{HostMut, Visit, VisitorMut},
 };
-use log::{debug, error};
+use log::error;
 
 pub struct Param {
     pub name: String,
