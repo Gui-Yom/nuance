@@ -37,7 +37,7 @@ fn main() -> Result<()> {
 
     // Create the window
     let builder = WindowBuilder::new()
-        .with_title("Shadertoy")
+        .with_title("Nuance")
         .with_inner_size(LogicalSize::new(800, 600))
         .with_resizable(false)
         .with_visible(true);

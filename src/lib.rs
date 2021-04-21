@@ -3,7 +3,7 @@ use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use egui::{ClippedMesh, DragValue, FontDefinitions, Frame, Style, TextureId};
+use egui::{ClippedMesh, Color32, DragValue, Frame, Style, TextureId};
 use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::{Platform, PlatformDescriptor};
 use log::{debug, info};
@@ -18,6 +18,7 @@ use extractor::Param;
 use crate::renderer::Renderer;
 use crate::shader_loader::ShaderLoader;
 use crate::types::{Globals, UVec2};
+use egui_wgpu_backend::egui::FontDefinitions;
 
 pub mod extractor;
 pub mod renderer;
@@ -38,7 +39,8 @@ pub enum Command {
 struct Settings {
     target_framerate: Duration,
     mouse_wheel_step: f32,
-    ui_width: f32,
+    /// Logical size
+    ui_width: u32,
 }
 
 pub struct Nuance {
@@ -54,6 +56,7 @@ pub struct Nuance {
     sim_time: Instant,
     settings: Settings,
     globals: Globals,
+    curr_shader_file: Option<String>,
     params: Vec<Param>,
 }
 
@@ -62,9 +65,9 @@ impl Nuance {
         let window_size = window.inner_size();
         let scale_factor = window.scale_factor();
 
-        let ui_width = 180.0;
+        let ui_width = 200.0;
         let mut canvas_size = window_size;
-        canvas_size.width -= ui_width as u32;
+        canvas_size.width -= (ui_width * scale_factor) as u32;
 
         debug!(
             "window physical size : {:?}, scale factor : {}",
@@ -99,7 +102,7 @@ impl Nuance {
             settings: Settings {
                 target_framerate: Duration::from_secs_f32(1.0 / 30.0),
                 mouse_wheel_step: 0.1,
-                ui_width,
+                ui_width: ui_width as u32,
             },
             globals: Globals {
                 resolution: UVec2::new(canvas_size.width, canvas_size.height),
@@ -109,6 +112,7 @@ impl Nuance {
                 time: 0.0,
                 frame: 0,
             },
+            curr_shader_file: None,
             params: Vec::new(),
         })
     }
@@ -117,7 +121,6 @@ impl Nuance {
     pub async fn run(mut self, event_loop: EventLoop<Command>) -> Result<()> {
         let mut last_draw_time = Instant::now();
         //let ev_sender = event_loop.create_proxy();
-        let mut curr_shader_file = None;
         // To send user events to the event loop
         let proxy = event_loop.create_proxy();
 
@@ -133,12 +136,13 @@ impl Nuance {
                     .unwrap();
             }
 
+            // Let egui update with the window events
             self.egui_platform.handle_event(&event);
 
             match event {
                 Event::UserEvent(cmd) => match cmd {
                     Command::Load(path) => {
-                        info!("Reloading !");
+                        info!("Loading {}", path);
                         let reload_start = Instant::now();
                         let (shader, params) = self.shader_loader.load_shader(&path).unwrap();
                         self.params = if let Some(params) = params {
@@ -151,34 +155,30 @@ impl Nuance {
                         self.globals.frame = 0;
                         self.globals.time = 0.0;
                         self.sim_time = Instant::now();
-                        curr_shader_file = Some(path);
+                        self.curr_shader_file = Some(path);
 
                         info!(
-                            "Reloaded ! (took {} ms)",
+                            "Loaded and ready ! (took {} ms)",
                             reload_start.elapsed().as_millis()
                         );
                     }
                     Command::Reload => {
+                        info!("Reloading !");
                         proxy
                             .send_event(Command::Load(
-                                curr_shader_file.as_ref().unwrap().to_string(),
+                                self.curr_shader_file.as_ref().unwrap().to_string(),
                             ))
                             .expect("Can't send event ?");
                     }
                     Command::Watch(path) => {
-                        curr_shader_file = Some(path);
                         self.watcher
-                            .watch(
-                                curr_shader_file.as_ref().unwrap(),
-                                RecursiveMode::NonRecursive,
-                            )
+                            .watch(&path, RecursiveMode::NonRecursive)
                             .unwrap();
                     }
                     Command::Unwatch => {
                         self.watcher
-                            .unwatch(curr_shader_file.as_ref().unwrap())
+                            .unwatch(self.curr_shader_file.as_ref().unwrap())
                             .unwrap();
-                        curr_shader_file = None;
                     }
                     Command::TargetFps(new_fps) => {
                         self.settings.target_framerate =
@@ -202,13 +202,11 @@ impl Nuance {
                         position,
                         ..
                     } => {
-                        let size = self.window.inner_size();
-                        if position.x > self.settings.ui_width as f64 {
+                        let scale_factor = self.window.scale_factor();
+                        if position.x > self.settings.ui_width as f64 * scale_factor {
                             self.globals.mouse = UVec2::new(
-                                (position.x - self.settings.ui_width as f64)
-                                    .clamp(0.0, size.width as f64)
-                                    as u32,
-                                position.y.clamp(0.0, size.height as f64) as u32,
+                                (position.x - self.settings.ui_width as f64 * scale_factor) as u32,
+                                position.y as u32,
                             );
                         }
                     }
@@ -258,7 +256,7 @@ impl Nuance {
                                 texture: &self.egui_platform.context().texture(),
                                 paint_jobs: &paint_jobs,
                             },
-                            &self.params.to_glsl(),
+                            &to_glsl(&self.params),
                             bytemuck::bytes_of(&self.globals),
                         )
                         .unwrap();
@@ -271,15 +269,14 @@ impl Nuance {
 
     fn render_gui(&mut self, proxy: &EventLoopProxy<Command>) -> Vec<ClippedMesh> {
         let window_size = self.window.inner_size();
+        let scale_factor = self.window.scale_factor() as f32;
         self.egui_platform.begin_frame();
 
         let mut framerate = (1.0 / self.settings.target_framerate.as_secs_f32()).round() as u32;
 
-        egui::SidePanel::left("params", self.settings.ui_width).show(
+        egui::SidePanel::left("params", self.settings.ui_width as f32).show(
             &self.egui_platform.context(),
             |ui| {
-                ui.set_width(self.settings.ui_width);
-
                 ui.label(format!(
                     "resolution : {:.0}x{:.0} px",
                     self.globals.resolution.x, self.globals.resolution.y
@@ -302,7 +299,7 @@ impl Nuance {
 
                 ui.add(
                     DragValue::new(&mut framerate)
-                        .prefix("framerate: ")
+                        .prefix("framerate : ")
                         .clamp_range(4.0..=120.0)
                         .max_decimals(0)
                         .speed(0.1),
@@ -317,6 +314,13 @@ impl Nuance {
 
                 ui.separator();
 
+                // Shader name
+                if let Some(file) = self.curr_shader_file.as_ref() {
+                    ui.colored_label(Color32::GREEN, file);
+                } else {
+                    ui.colored_label(Color32::RED, "No loaded shader");
+                }
+
                 ui.label("Params");
                 for param in self.params.iter_mut() {
                     ui.add(
@@ -324,7 +328,11 @@ impl Nuance {
                             .prefix(format!("{}: ", param.name))
                             .clamp_range(param.min..=param.max)
                             .max_decimals(3)
-                            .speed(param.max / (window_size.width as f32 - self.settings.ui_width)),
+                            .speed(
+                                param.max
+                                    / (window_size.width as f32
+                                        - self.settings.ui_width as f32 * scale_factor),
+                            ),
                     );
                 }
             },
@@ -334,9 +342,10 @@ impl Nuance {
             |ui| {
                 ui.image(
                     TextureId::User(0),
-                    egui::vec2(
-                        (window_size.width as f32 - self.settings.ui_width) / 1.25,
-                        window_size.height as f32 / 1.25,
+                    egui::Vec2::new(
+                        (window_size.width as f32 - self.settings.ui_width as f32 * scale_factor)
+                            / scale_factor,
+                        window_size.height as f32 / scale_factor,
                     ),
                 );
             },
@@ -351,31 +360,25 @@ impl Nuance {
     }
 }
 
-trait ToGlsl {
-    fn to_glsl(&self) -> Vec<u8>;
-}
+fn to_glsl<'a>(iter: impl IntoIterator<Item = &'a Param>) -> Vec<u8> {
+    // We put our values together
+    let mut floats = Vec::new();
+    for param in iter {
+        floats.push(param.value);
+    }
+    // We reinterpret our floats to bytes
+    // FIXME probably won't work for more complex types
+    unsafe {
+        let ratio = mem::size_of::<f32>() / mem::size_of::<u8>();
 
-impl ToGlsl for Vec<Param> {
-    fn to_glsl(&self) -> Vec<u8> {
-        // We put our values together
-        let mut floats = Vec::new();
-        for param in self.iter() {
-            floats.push(param.value);
-        }
-        // We reinterpret our floats to bytes
-        // FIXME probably won't work for more complex types
-        unsafe {
-            let ratio = mem::size_of::<f32>() / mem::size_of::<u8>();
+        let length = floats.len() * ratio;
+        let capacity = floats.capacity() * ratio;
+        let ptr = floats.as_mut_ptr() as *mut u8;
 
-            let length = floats.len() * ratio;
-            let capacity = floats.capacity() * ratio;
-            let ptr = floats.as_mut_ptr() as *mut u8;
+        // Don't run the destructor for vec32
+        mem::forget(floats);
 
-            // Don't run the destructor for vec32
-            mem::forget(floats);
-
-            // Construct new Vec
-            Vec::from_raw_parts(ptr, length, capacity)
-        }
+        // Construct new Vec
+        Vec::from_raw_parts(ptr, length, capacity)
     }
 }

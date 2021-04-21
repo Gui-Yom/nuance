@@ -40,6 +40,6 @@ notify = "4"
 log = { version = "0.4", features = ["std"] }
 simplelog = "0.10"
 # GUI
-egui = "0.11"
+egui = { version = "0.11" }#, git = "https://github.com/emilk/egui", rev = "035166276322b3f2324bd8b97ffcedc63fa8419f" }
 egui_wgpu_backend = { version = "0.6" }
 egui_winit_platform = "0.6"
