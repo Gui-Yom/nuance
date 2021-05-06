@@ -4,16 +4,15 @@ use egui_wgpu_backend::ScreenDescriptor;
 use log::debug;
 use wgpu::{
     include_spirv, Adapter, BackendBit, BindGroup, BindGroupDescriptor, BindGroupEntry,
-    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendState,
-    Buffer, BufferBindingType, BufferDescriptor, BufferUsage, Color, ColorTargetState, ColorWrite,
-    CommandEncoderDescriptor, CullMode, Device, Extent3d, Features, FragmentState, FrontFace,
+    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, Buffer,
+    BufferBinding, BufferBindingType, BufferDescriptor, BufferUsage, Color, ColorTargetState,
+    ColorWrite, CommandEncoderDescriptor, Device, Extent3d, Features, FragmentState, FrontFace,
     Instance, Limits, LoadOp, MultisampleState, Operations, PipelineLayout,
     PipelineLayoutDescriptor, PolygonMode, PowerPreference, PresentMode, PrimitiveState,
-    PrimitiveTopology, PushConstantRange, Queue, RenderPassColorAttachmentDescriptor,
-    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
-    ShaderFlags, ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStage, Surface,
-    SwapChain, SwapChainDescriptor, Texture, TextureDescriptor, TextureFormat, TextureUsage,
-    TextureViewDescriptor, VertexState,
+    PrimitiveTopology, PushConstantRange, Queue, RenderPassColorAttachment, RenderPassDescriptor,
+    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderFlags, ShaderModule,
+    ShaderModuleDescriptor, ShaderSource, ShaderStage, Surface, SwapChain, SwapChainDescriptor,
+    Texture, TextureDescriptor, TextureFormat, TextureUsage, TextureViewDescriptor, VertexState,
 };
 use winit::window::Window;
 
@@ -91,18 +90,7 @@ impl Renderer {
                 &wgpu::DeviceDescriptor {
                     label: Some("device_request"),
                     features: Features::PUSH_CONSTANTS,
-                    limits: Limits {
-                        max_bind_groups: 2,
-                        max_dynamic_uniform_buffers_per_pipeline_layout: 0,
-                        max_dynamic_storage_buffers_per_pipeline_layout: 0,
-                        max_sampled_textures_per_shader_stage: 1,
-                        max_samplers_per_shader_stage: 1,
-                        max_storage_buffers_per_shader_stage: 0,
-                        max_storage_textures_per_shader_stage: 0,
-                        max_uniform_buffers_per_shader_stage: 2,
-                        max_uniform_buffer_binding_size: 16384,
-                        max_push_constant_size: push_constants_size,
-                    },
+                    limits: Limits::default(),
                 },
                 None,
             )
@@ -135,7 +123,7 @@ impl Renderer {
             size: Extent3d {
                 width: render_size.0,
                 height: render_size.1,
-                depth: 1,
+                depth_or_array_layers: 1,
             },
             mip_level_count: 1,
             sample_count: 1,
@@ -175,11 +163,11 @@ impl Renderer {
             layout: &bind_group_layout,
             entries: &[BindGroupEntry {
                 binding: 0,
-                resource: BindingResource::Buffer {
+                resource: BindingResource::Buffer(BufferBinding {
                     buffer: &params_buffer,
                     offset: 0,
                     size: None,
-                },
+                }),
             }],
         });
 
@@ -235,8 +223,10 @@ impl Renderer {
                         topology: PrimitiveTopology::TriangleList,
                         strip_index_format: None,
                         front_face: FrontFace::Ccw,
-                        cull_mode: CullMode::None,
+                        cull_mode: None,
+                        clamp_depth: false,
                         polygon_mode: PolygonMode::Fill,
+                        conservative: false,
                     },
                     depth_stencil: None,
                     multisample: MultisampleState {
@@ -253,9 +243,8 @@ impl Renderer {
                         entry_point: "main",
                         targets: &[ColorTargetState {
                             format: self.format,
-                            alpha_blend: BlendState::default(),
-                            color_blend: BlendState::default(),
                             write_mask: ColorWrite::ALL,
+                            blend: None,
                         }],
                     }),
                 }),
@@ -287,8 +276,8 @@ impl Renderer {
             // Clears the buffer with the background color and then run the pipeline
             let mut rpass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("main render pass"),
-                color_attachments: &[RenderPassColorAttachmentDescriptor {
-                    attachment: &render_tex_view,
+                color_attachments: &[RenderPassColorAttachment {
+                    view: &render_tex_view,
                     resolve_target: None,
                     ops: Operations {
                         load: LoadOp::Clear(self.background_color),
