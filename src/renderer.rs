@@ -90,7 +90,10 @@ impl Renderer {
                 &wgpu::DeviceDescriptor {
                     label: Some("device_request"),
                     features: Features::PUSH_CONSTANTS,
-                    limits: Limits::default(),
+                    limits: Limits {
+                        max_push_constant_size: push_constants_size,
+                        ..Default::default()
+                    },
                 },
                 None,
             )
