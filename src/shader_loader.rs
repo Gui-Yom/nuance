@@ -10,8 +10,8 @@ use shaderc::{
 };
 use wgpu::ShaderSource;
 
-use crate::extractor;
-use crate::extractor::Param;
+use crate::preprocessor;
+use crate::preprocessor::Param;
 
 pub struct ShaderLoader {
     compiler: Compiler,
@@ -54,7 +54,7 @@ impl ShaderLoader {
         {
             // Preprocess glsl to extract what we need
             let mut source = fs::read_to_string(path)?;
-            let params = if let Some((params, new)) = extractor::extract(&source) {
+            let params = if let Some((params, new)) = preprocessor::extract(&source) {
                 // We found params and transpiled the code
                 source = new;
                 Some(params)
@@ -123,6 +123,7 @@ impl ShaderLoader {
         }
     }
 
+    /// Resolve an include with the given name
     fn find_include(
         includes: &[String],
         name: &str,

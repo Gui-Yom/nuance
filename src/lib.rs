@@ -13,13 +13,13 @@ use winit::event::{Event, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::Window;
 
-use extractor::Param;
+use preprocessor::Param;
 
 use crate::renderer::Renderer;
 use crate::shader_loader::ShaderLoader;
 use crate::types::{Globals, UVec2};
 
-pub mod extractor;
+pub mod preprocessor;
 pub mod renderer;
 pub mod shader_loader;
 pub mod types;
