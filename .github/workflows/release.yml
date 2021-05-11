@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release-artifacts:
+    name: Upload prebuilt binaries on GitHub
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: "nuance.exe"
+          - os: ubuntu-latest
+            artifact: "nuance"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - uses: seanmiddleditch/gha-setup-ninja@master
+      - name: Install rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          profile: minimal
+          components: rust-docs
+      - name: Build release
+        run: cargo build --release
+      - name: Upload release artifact
+        uses: softprops/action-gh-release@v1
+        with:
+          files: target/release/${{ matrix.artifact }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  release:
+    name: Publish release on crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - uses: seanmiddleditch/gha-setup-ninja@master
+      - name: Install rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          profile: minimal
+          components: rust-docs
+      - name: Release (crates.io)
+        run: cargo publish --token ${{ secrets.CRATES_IO_TOKEN }}

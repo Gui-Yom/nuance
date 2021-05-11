@@ -4,11 +4,15 @@ A nice tool to run your shaders on the gpu. Also a good demo for wgpu-rs.
 
 ## Installation
 
-Install with cargo or download a prebuilt binary for windows in the release page.
+Install with cargo:
 
 ```shell
 $ cargo install --locked nuance
 ```
+
+Or download a prebuilt binary from the [Release](https://github.com/Gui-Yom/nuance/releases) page.
+Prebuilt binaries are currently available for Windows (x86_64-pc-windows-msvc) and Linux
+(x86_64-unknown-linux-gnu).
 
 See [Development](#Development) when building from source.
 
