@@ -25,7 +25,15 @@ fn main() -> Result<()> {
     TermLogger::init(
         LevelFilter::Debug,
         ConfigBuilder::new()
+            .set_target_level(LevelFilter::Error)
             .add_filter_ignore_str("naga::front::spv")
+            .add_filter_ignore_str("naga::valid::interface")
+            .add_filter_ignore_str("wgpu_core::instance")
+            .add_filter_ignore_str("wgpu_core::device")
+            .add_filter_ignore_str("wgpu_core::swap_chain")
+            .add_filter_ignore_str("wgpu_core::command")
+            .add_filter_ignore_str("wgpu_core::hub")
+            .add_filter_ignore_str("gfx_backend_vulkan")
             .build(),
         TerminalMode::Stdout,
         ColorChoice::Auto,

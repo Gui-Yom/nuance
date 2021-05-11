@@ -3,7 +3,7 @@ use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use egui::{ClippedMesh, Color32, DragValue, Frame, Style, TextureId};
+use egui::{ClippedMesh, Color32, DragValue, FontDefinitions, Frame, Style, TextureId};
 use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::{Platform, PlatformDescriptor};
 use log::{debug, info};
@@ -18,7 +18,6 @@ use extractor::Param;
 use crate::renderer::Renderer;
 use crate::shader_loader::ShaderLoader;
 use crate::types::{Globals, UVec2};
-use egui_wgpu_backend::egui::FontDefinitions;
 
 pub mod extractor;
 pub mod renderer;
