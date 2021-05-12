@@ -110,7 +110,6 @@ entire application build time.
 
 ## TODO
 
-- Reimplement commands with the GUI
 - Merge params uniform block with push_constant block
 - Error handling (currently it crashes if something goes wrong)
 - GPU hot switch (for when you see that you need some extra gpu juice)

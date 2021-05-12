@@ -36,6 +36,7 @@ anyhow = "1"
 bytemuck = { version = "1", features = ["derive"] }
 # File watcher
 notify = "4"
+rfd = "0.3"
 # logger api
 log = { version = "0.4", features = ["std"] }
 simplelog = "0.10"

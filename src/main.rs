@@ -7,6 +7,8 @@ use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
 
 use nuance::{Command, Nuance};
+use std::path::PathBuf;
+use std::str::FromStr;
 
 fn main() -> Result<()> {
     let mut power_preference = PowerPreference::LowPower;
@@ -54,7 +56,7 @@ fn main() -> Result<()> {
     if let Some(shader) = shader {
         event_loop
             .create_proxy()
-            .send_event(Command::Load(shader))?;
+            .send_event(Command::Load(PathBuf::from(shader)))?;
     }
 
     // Going async !

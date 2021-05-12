@@ -1,4 +1,5 @@
 use std::mem;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
@@ -8,6 +9,7 @@ use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::{Platform, PlatformDescriptor};
 use log::{debug, info};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
+use rfd::FileDialog;
 use wgpu::PowerPreference;
 use winit::event::{Event, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
@@ -26,9 +28,9 @@ pub mod types;
 
 #[derive(Debug)]
 pub enum Command {
-    Load(String),
+    Load(PathBuf),
     Reload,
-    Watch(String),
+    Watch,
     Unwatch,
     TargetFps(i16),
     Restart,
@@ -43,19 +45,28 @@ struct Settings {
 }
 
 pub struct Nuance {
+    /// The main window
     window: Window,
+    /// Egui subsystem
     egui_platform: Platform,
+    /// App settings
+    settings: Settings,
 
     shader_loader: ShaderLoader,
     watcher: RecommendedWatcher,
+    /// Receiver for watcher events
     watcher_rx: Receiver<DebouncedEvent>,
 
     renderer: Renderer,
 
+    /// The instant at which the simulation started
     sim_time: Instant,
-    settings: Settings,
+    /// The current loaded shader
+    curr_shader_file: Option<PathBuf>,
+    watching: bool,
+    /// Parameters passed to shaders
     globals: Globals,
-    curr_shader_file: Option<String>,
+    /// Extra parameters passed to shaders, defined by the shader itself
     params: Vec<Param>,
 }
 
@@ -93,16 +104,18 @@ impl Nuance {
                 font_definitions: FontDefinitions::default(),
                 style: Style::default(),
             }),
-            shader_loader: ShaderLoader::new(),
-            watcher: watcher(tx, Duration::from_millis(200))?,
-            watcher_rx: rx,
-            renderer,
-            sim_time: Instant::now(),
             settings: Settings {
                 target_framerate: Duration::from_secs_f32(1.0 / 30.0),
                 mouse_wheel_step: 0.1,
                 ui_width: ui_width as u32,
             },
+            shader_loader: ShaderLoader::new(),
+            watcher: watcher(tx, Duration::from_millis(200))?,
+            watcher_rx: rx,
+            renderer,
+            sim_time: Instant::now(),
+            curr_shader_file: None,
+            watching: false,
             globals: Globals {
                 resolution: UVec2::new(canvas_size.width, canvas_size.height),
                 mouse: UVec2::zero(),
@@ -111,7 +124,6 @@ impl Nuance {
                 time: 0.0,
                 frame: 0,
             },
-            curr_shader_file: None,
             params: Vec::new(),
         })
     }
@@ -130,9 +142,7 @@ impl Nuance {
             *control_flow = ControlFlow::Poll;
 
             if let Ok(DebouncedEvent::Write(path)) = self.watcher_rx.try_recv() {
-                proxy
-                    .send_event(Command::Load(path.to_str().unwrap().to_string()))
-                    .unwrap();
+                proxy.send_event(Command::Load(path)).unwrap();
             }
 
             // Let egui update with the window events
@@ -141,38 +151,18 @@ impl Nuance {
             match event {
                 Event::UserEvent(cmd) => match cmd {
                     Command::Load(path) => {
-                        info!("Loading {}", path);
-                        let reload_start = Instant::now();
-                        let (shader, params) = self.shader_loader.load_shader(&path).unwrap();
-                        self.params = if let Some(params) = params {
-                            params
-                        } else {
-                            Vec::new()
-                        };
-                        self.renderer.new_pipeline_from_shader_source(shader);
-                        // Reset the running globals
-                        self.globals.frame = 0;
-                        self.globals.time = 0.0;
-                        self.sim_time = Instant::now();
-                        self.curr_shader_file = Some(path);
-
-                        info!(
-                            "Loaded and ready ! (took {} ms)",
-                            reload_start.elapsed().as_millis()
-                        );
+                        self.load(&path);
                     }
                     Command::Reload => {
                         info!("Reloading !");
-                        proxy
-                            .send_event(Command::Load(
-                                self.curr_shader_file.as_ref().unwrap().to_string(),
-                            ))
-                            .expect("Can't send event ?");
+                        self.load(self.curr_shader_file.as_ref().unwrap().clone());
                     }
-                    Command::Watch(path) => {
-                        self.watcher
-                            .watch(&path, RecursiveMode::NonRecursive)
-                            .unwrap();
+                    Command::Watch => {
+                        if let Some(path) = self.curr_shader_file.as_ref() {
+                            self.watcher
+                                .watch(path, RecursiveMode::NonRecursive)
+                                .unwrap();
+                        }
                     }
                     Command::Unwatch => {
                         self.watcher
@@ -266,6 +256,28 @@ impl Nuance {
         });
     }
 
+    fn load<P: AsRef<Path>>(&mut self, path: P) {
+        info!("Loading {}", path.as_ref().to_str().unwrap());
+        let reload_start = Instant::now();
+        let (shader, params) = self.shader_loader.load_shader(&path).unwrap();
+        self.params = if let Some(params) = params {
+            params
+        } else {
+            Vec::new()
+        };
+        self.renderer.new_pipeline_from_shader_source(shader);
+        // Reset the running globals
+        self.globals.frame = 0;
+        self.globals.time = 0.0;
+        self.sim_time = Instant::now();
+        self.curr_shader_file = Some(path.as_ref().into());
+
+        info!(
+            "Loaded and ready ! (took {} ms)",
+            reload_start.elapsed().as_millis()
+        );
+    }
+
     fn render_gui(&mut self, proxy: &EventLoopProxy<Command>) -> Vec<ClippedMesh> {
         let window_size = self.window.inner_size();
         let scale_factor = self.window.scale_factor() as f32;
@@ -313,9 +325,29 @@ impl Nuance {
 
                 ui.separator();
 
+                ui.horizontal(|ui| {
+                    if ui.button("Load").clicked() {
+                        if let Some(path) = FileDialog::new()
+                            .add_filter("Shaders", &["glsl", "frag"])
+                            .pick_file()
+                        {
+                            proxy.send_event(Command::Load(path)).unwrap();
+                        }
+                    }
+                    if self.curr_shader_file.is_some()
+                        && ui.checkbox(&mut self.watching, "watch").changed()
+                    {
+                        if self.watching {
+                            proxy.send_event(Command::Watch).unwrap();
+                        } else {
+                            proxy.send_event(Command::Unwatch).unwrap();
+                        }
+                    }
+                });
+
                 // Shader name
                 if let Some(file) = self.curr_shader_file.as_ref() {
-                    ui.colored_label(Color32::GREEN, file);
+                    ui.colored_label(Color32::GREEN, file.to_str().unwrap());
                 } else {
                     ui.colored_label(Color32::RED, "No loaded shader");
                 }
