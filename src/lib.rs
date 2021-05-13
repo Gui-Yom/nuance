@@ -15,11 +15,11 @@ use winit::event::{Event, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::Window;
 
-use preprocessor::Param;
+use preprocessor::Slider;
 
 use crate::renderer::Renderer;
 use crate::shader_loader::ShaderLoader;
-use crate::types::{Globals, UVec2};
+use crate::types::{Globals, Vec2u};
 
 pub mod preprocessor;
 pub mod renderer;
@@ -67,7 +67,7 @@ pub struct Nuance {
     /// Parameters passed to shaders
     globals: Globals,
     /// Extra parameters passed to shaders, defined by the shader itself
-    params: Vec<Param>,
+    params: Vec<Slider>,
 }
 
 impl Nuance {
@@ -117,8 +117,8 @@ impl Nuance {
             curr_shader_file: None,
             watching: false,
             globals: Globals {
-                resolution: UVec2::new(canvas_size.width, canvas_size.height),
-                mouse: UVec2::zero(),
+                resolution: Vec2u::new(canvas_size.width, canvas_size.height),
+                mouse: Vec2u::zero(),
                 mouse_wheel: 0.0,
                 ratio: (canvas_size.width) as f32 / canvas_size.height as f32,
                 time: 0.0,
@@ -193,7 +193,7 @@ impl Nuance {
                     } => {
                         let scale_factor = self.window.scale_factor();
                         if position.x > self.settings.ui_width as f64 * scale_factor {
-                            self.globals.mouse = UVec2::new(
+                            self.globals.mouse = Vec2u::new(
                                 (position.x - self.settings.ui_width as f64 * scale_factor) as u32,
                                 position.y as u32,
                             );
@@ -354,17 +354,26 @@ impl Nuance {
 
                 ui.label("Params");
                 for param in self.params.iter_mut() {
-                    ui.add(
-                        DragValue::new(&mut param.value)
-                            .prefix(format!("{}: ", param.name))
-                            .clamp_range(param.min..=param.max)
-                            .max_decimals(3)
-                            .speed(
-                                param.max
-                                    / (window_size.width as f32
-                                        - self.settings.ui_width as f32 * scale_factor),
-                            ),
-                    );
+                    match param {
+                        Slider::Float {
+                            name,
+                            mut min,
+                            mut max,
+                            value,
+                        } => {
+                            ui.add(
+                                DragValue::new(value)
+                                    .prefix(format!("{}: ", name))
+                                    .clamp_range(min..=max)
+                                    .max_decimals(3)
+                                    .speed(
+                                        max / (window_size.width as f32
+                                            - self.settings.ui_width as f32 * scale_factor),
+                                    ),
+                            );
+                        }
+                        _ => {}
+                    }
                 }
             },
         );
@@ -391,11 +400,16 @@ impl Nuance {
     }
 }
 
-fn to_glsl<'a>(iter: impl IntoIterator<Item = &'a Param>) -> Vec<u8> {
+fn to_glsl<'a>(iter: impl IntoIterator<Item = &'a Slider>) -> Vec<u8> {
     // We put our values together
     let mut floats = Vec::new();
     for param in iter {
-        floats.push(param.value);
+        match param {
+            Slider::Float { value, .. } => {
+                floats.push(*value);
+            }
+            _ => {}
+        }
     }
     // We reinterpret our floats to bytes
     // FIXME probably won't work for more complex types

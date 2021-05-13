@@ -1,5 +1,7 @@
 #include <Nuance>
 
+#define NUANCE_STILL_IMAGE
+
 layout(params) uniform Params {
     layout(min = 0.0, max = 1.0) float red;
     layout(min = 0.0, max = 1.0) float green;

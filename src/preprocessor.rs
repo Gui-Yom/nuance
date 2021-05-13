@@ -3,6 +3,7 @@
 use core::panic;
 use std::ops::Deref;
 
+use glsl_lang::ast::PreprocessorDefine;
 use glsl_lang::{
     ast::{
         Block, Expr, Identifier, IdentifierData, LayoutQualifier, LayoutQualifierSpec, SmolStr,
@@ -12,21 +13,40 @@ use glsl_lang::{
     transpiler::glsl::FormattingState,
     visitor::{HostMut, Visit, VisitorMut},
 };
+use log::debug;
 use log::error;
 
-pub struct Param {
-    pub name: String,
-    pub min: f32,
-    pub max: f32,
-    pub value: f32,
+use crate::types::Vec3f;
+
+pub enum Slider {
+    Float {
+        name: String,
+        min: f32,
+        max: f32,
+        value: f32,
+    },
+    Color {
+        name: String,
+        value: Vec3f,
+    },
 }
 
 /// Traverses the ast and extract useful data while converting the ast to valid glsl source
-struct Extractor {
-    sliders: Vec<Param>,
+struct ShaderMetadata {
+    sliders: Vec<Slider>,
+    still_image: bool,
 }
 
-impl VisitorMut for Extractor {
+impl Default for ShaderMetadata {
+    fn default() -> Self {
+        Self {
+            sliders: Vec::new(),
+            still_image: false,
+        }
+    }
+}
+
+impl VisitorMut for ShaderMetadata {
     fn visit_block(&mut self, block: &mut Block) -> Visit {
         if let Some(TypeQualifierSpec::Layout(layout)) = block.qualifier.qualifiers.first() {
             if let Some(LayoutQualifierSpec::Identifier(id, _)) = layout.ids.first() {
@@ -34,7 +54,6 @@ impl VisitorMut for Extractor {
                     // We got the block we searched for
                     for field in block.fields.iter_mut() {
                         self.sliders.push(create_slider_from_field(field));
-                        // FIXME field might not need transpiling if we allow default sliders
                         convert_field(field);
                     }
                     convert_block(block);
@@ -44,18 +63,34 @@ impl VisitorMut for Extractor {
         Visit::Parent
     }
 
+    fn visit_preprocessor_define(&mut self, define: &mut PreprocessorDefine) -> Visit {
+        if let PreprocessorDefine::ObjectLike { ident, value } = define {
+            if ident.content.0.as_str() == "NUANCE_STILL_IMAGE" {
+                self.still_image = true;
+            }
+        }
+        Visit::Parent
+    }
+
     fn visit_expr(&mut self, expr: &mut Expr) -> Visit {
         if let Expr::Dot(expr2, ident1) = expr {
             if let Expr::Variable(ident0) = expr2.as_ref() {
-                let name = ident0.content.0.as_str();
-                if let Some(slider) = self.sliders.iter().find(|it| it.name == name) {
-                    *expr = Expr::FloatConst(match ident1.content.0.as_str() {
-                        "max" => slider.max,
-                        "min" => slider.min,
-                        _ => panic!("No such field exist !"),
-                    })
+                let slider_name = ident0.content.0.as_str();
+                for slider in self.sliders.iter() {
+                    match slider {
+                        Slider::Float { name, min, max, .. } => {
+                            if name == slider_name {
+                                *expr = Expr::FloatConst(match ident1.content.0.as_str() {
+                                    "max" => *max,
+                                    "min" => *min,
+                                    _ => panic!("No such field exist !"),
+                                });
+                                return Visit::Parent;
+                            }
+                        }
+                        _ => {}
+                    }
                 }
-                return Visit::Parent;
             }
         }
         Visit::Children
@@ -63,7 +98,7 @@ impl VisitorMut for Extractor {
 }
 
 // TODO different sliders for different field types
-pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Param {
+pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Slider {
     let name = field
         .identifiers
         .first()
@@ -105,7 +140,7 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Param {
             }
         }
     }
-    Param {
+    Slider::Float {
         name,
         min,
         max,
@@ -140,10 +175,8 @@ pub fn convert_field(field: &mut StructFieldSpecifier) {
     field.qualifier = None;
 }
 
-pub fn extract(source: &str) -> Option<(Vec<Param>, String)> {
-    let mut extractor = Extractor {
-        sliders: Vec::new(),
-    };
+pub fn extract(source: &str) -> Option<(Vec<Slider>, String)> {
+    let mut extractor = ShaderMetadata::default();
 
     // The AST
     let (mut ast, _ctx) = TranslationUnit::parse_with_options(

@@ -11,7 +11,7 @@ use shaderc::{
 use wgpu::ShaderSource;
 
 use crate::preprocessor;
-use crate::preprocessor::Param;
+use crate::preprocessor::Slider;
 
 pub struct ShaderLoader {
     compiler: Compiler,
@@ -40,7 +40,7 @@ impl ShaderLoader {
     pub fn load_shader<P: AsRef<Path>>(
         &mut self,
         path: P,
-    ) -> Result<(ShaderSource<'_>, Option<Vec<Param>>)> {
+    ) -> Result<(ShaderSource<'_>, Option<Vec<Slider>>)> {
         let path = path.as_ref();
         // Already compiled shader
         if path.extension().map_or(false, |e| e == "spv") {
