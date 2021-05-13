@@ -267,9 +267,17 @@ impl Nuance {
             return;
         }
         let (shader, source) = result.unwrap();
-        self.shader = Some(shader);
 
-        self.renderer.new_pipeline_from_shader_source(source);
+        let buffer_size = if let Some(metadata) = shader.metadata.as_ref() {
+            metadata.buffer_size()
+        } else {
+            0
+        };
+
+        self.renderer
+            .set_shader(source, mem::size_of::<Globals>() as u32, buffer_size);
+
+        self.shader = Some(shader);
         // Reset the running globals
         self.globals.frame = 0;
         self.globals.time = 0.0;

@@ -171,7 +171,7 @@ impl ShaderLoader {
             }
             IncludeType::Standard => {
                 if name == "Nuance" {
-                    const STD: &str = include_str!("shaders/Nuance.glsl");
+                    const STD: &str = include_str!("Nuance.glsl");
                     Ok(ResolvedInclude {
                         resolved_name: "NUANCE_STD".to_string(),
                         content: STD.to_string(),

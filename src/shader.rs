@@ -30,6 +30,23 @@ impl Default for ShaderMetadata {
     }
 }
 
+impl ShaderMetadata {
+    pub fn buffer_size(&self) -> u64 {
+        let mut size = 0;
+        for slider in self.sliders.iter() {
+            match slider {
+                &Slider::Float { .. } => {
+                    size += 4;
+                }
+                &Slider::Color { .. } => {
+                    size += 16;
+                }
+            }
+        }
+        size
+    }
+}
+
 pub struct Shader {
     /// Path to the main shader file
     pub main: PathBuf,
