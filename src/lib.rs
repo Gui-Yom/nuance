@@ -138,8 +138,8 @@ impl Nuance {
             // Run this loop indefinitely by default
             *control_flow = ControlFlow::Poll;
 
-            if let Ok(DebouncedEvent::Write(path)) = self.watcher_rx.try_recv() {
-                proxy.send_event(Command::Load(path)).unwrap();
+            if let Ok(DebouncedEvent::Write(_)) = self.watcher_rx.try_recv() {
+                proxy.send_event(Command::Reload).unwrap();
             }
 
             // Let egui update with the window events
@@ -148,6 +148,7 @@ impl Nuance {
             match event {
                 Event::UserEvent(cmd) => match cmd {
                     Command::Load(path) => {
+                        proxy.send_event(Command::Unwatch).unwrap();
                         self.load(&path);
                     }
                     Command::Reload => {
