@@ -15,11 +15,13 @@ use winit::event::{Event, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::Window;
 
+use crate::gui::Gui;
 use crate::renderer::Renderer;
 use crate::shader::{Shader, Slider};
 use crate::shader_loader::ShaderLoader;
 use crate::types::{Globals, Vec2u};
 
+mod gui;
 pub mod preprocessor;
 pub mod renderer;
 pub mod shader;
@@ -32,28 +34,24 @@ pub enum Command {
     Reload,
     Watch,
     Unwatch,
-    TargetFps(i16),
     Restart,
     Exit,
 }
 
-struct Settings {
-    target_framerate: Duration,
-    mouse_wheel_step: f32,
-    /// Logical size
-    ui_width: u32,
+pub struct Settings {
+    pub target_framerate: Duration,
+    pub mouse_wheel_step: f32,
 }
 
 pub struct Nuance {
     /// The main window
     window: Window,
-    /// Egui subsystem
-    egui_platform: Platform,
+    gui: Gui,
     /// App settings
-    settings: Settings,
+    pub settings: Settings,
 
     /// The current loaded shader
-    shader: Option<Shader>,
+    pub shader: Option<Shader>,
     /// Shader compiler and transpiler
     shader_loader: ShaderLoader,
     watcher: RecommendedWatcher,
@@ -64,9 +62,9 @@ pub struct Nuance {
 
     /// The instant at which the simulation started
     sim_time: Instant,
-    watching: bool,
+    pub watching: bool,
     /// Parameters passed to shaders
-    globals: Globals,
+    pub globals: Globals,
 }
 
 impl Nuance {
@@ -96,17 +94,19 @@ impl Nuance {
 
         Ok(Self {
             window,
-            egui_platform: Platform::new(PlatformDescriptor {
-                physical_width: window_size.width,
-                physical_height: window_size.height,
-                scale_factor,
-                font_definitions: FontDefinitions::default(),
-                style: Style::default(),
-            }),
+            gui: Gui::new(
+                Platform::new(PlatformDescriptor {
+                    physical_width: window_size.width,
+                    physical_height: window_size.height,
+                    scale_factor,
+                    font_definitions: FontDefinitions::default(),
+                    style: Style::default(),
+                }),
+                ui_width as u32,
+            ),
             settings: Settings {
                 target_framerate: Duration::from_secs_f32(1.0 / 30.0),
                 mouse_wheel_step: 0.1,
-                ui_width: ui_width as u32,
             },
             shader: None,
             shader_loader: ShaderLoader::new(),
@@ -143,7 +143,7 @@ impl Nuance {
             }
 
             // Let egui update with the window events
-            self.egui_platform.handle_event(&event);
+            self.gui.handle_event(&event);
 
             match event {
                 Event::UserEvent(cmd) => match cmd {
@@ -166,10 +166,6 @@ impl Nuance {
                             .unwatch(&self.shader.as_ref().unwrap().main)
                             .unwrap();
                     }
-                    Command::TargetFps(new_fps) => {
-                        self.settings.target_framerate =
-                            Duration::from_secs_f32(1.0 / new_fps as f32)
-                    }
                     Command::Restart => {
                         info!("Restarting !");
                         // Reset the running globals
@@ -189,9 +185,9 @@ impl Nuance {
                         ..
                     } => {
                         let scale_factor = self.window.scale_factor();
-                        if position.x > self.settings.ui_width as f64 * scale_factor {
+                        if position.x > self.gui.ui_width as f64 * scale_factor {
                             self.globals.mouse = Vec2u::new(
-                                (position.x - self.settings.ui_width as f64 * scale_factor) as u32,
+                                (position.x - self.gui.ui_width as f64 * scale_factor) as u32,
                                 position.y as u32,
                             );
                         }
@@ -227,9 +223,15 @@ impl Nuance {
                     self.globals.time = self.sim_time.elapsed().as_secs_f32();
                 }
                 Event::RedrawRequested(_) => {
-                    self.egui_platform
-                        .update_time(app_time.elapsed().as_secs_f64());
-                    let paint_jobs = self.render_gui(&proxy);
+                    self.gui.update_time(app_time.elapsed().as_secs_f64());
+                    let paint_jobs = self.gui.render(
+                        &self.window,
+                        self.shader.as_mut(),
+                        &mut self.watching,
+                        &mut self.settings,
+                        &self.globals,
+                        &proxy,
+                    );
                     let window_size = self.window.inner_size();
                     self.renderer
                         .render(
@@ -239,7 +241,7 @@ impl Nuance {
                                 scale_factor: self.window.scale_factor() as f32,
                             },
                             renderer::GuiData {
-                                texture: &self.egui_platform.context().texture(),
+                                texture: &self.gui.texture(),
                                 paint_jobs: &paint_jobs,
                             },
                             &self
@@ -287,137 +289,6 @@ impl Nuance {
             "Loaded and ready ! (took {} ms)",
             reload_start.elapsed().as_millis()
         );
-    }
-
-    fn render_gui(&mut self, proxy: &EventLoopProxy<Command>) -> Vec<ClippedMesh> {
-        let window_size = self.window.inner_size();
-        let scale_factor = self.window.scale_factor() as f32;
-        self.egui_platform.begin_frame();
-
-        let mut framerate = (1.0 / self.settings.target_framerate.as_secs_f32()).round() as u32;
-
-        egui::SidePanel::left("params", self.settings.ui_width as f32).show(
-            &self.egui_platform.context(),
-            |ui| {
-                ui.label(format!(
-                    "resolution : {:.0}x{:.0} px",
-                    self.globals.resolution.x, self.globals.resolution.y
-                ));
-                ui.label(format!(
-                    "mouse : ({:.0}, {:.0}) px",
-                    self.globals.mouse.x, self.globals.mouse.y
-                ));
-                ui.label(format!("mouse wheel : {:.1}", self.globals.mouse_wheel));
-                ui.label(format!("time : {:.3} s", self.globals.time));
-                ui.label(format!("frame : {}", self.globals.frame));
-
-                if ui.small_button("Reset").clicked() {
-                    proxy.send_event(Command::Restart).unwrap();
-                }
-
-                ui.separator();
-
-                ui.label("Settings");
-
-                ui.add(
-                    DragValue::new(&mut framerate)
-                        .prefix("framerate : ")
-                        .clamp_range(4.0..=120.0)
-                        .max_decimals(0)
-                        .speed(0.1),
-                );
-                ui.add(
-                    DragValue::new(&mut self.settings.mouse_wheel_step)
-                        .prefix("mouse wheel inc : ")
-                        .clamp_range(-100.0..=100.0)
-                        .max_decimals(3)
-                        .speed(0.01),
-                );
-
-                ui.separator();
-
-                ui.horizontal(|ui| {
-                    if ui.button("Load").clicked() {
-                        if let Some(path) = FileDialog::new()
-                            .add_filter("Shaders", &["glsl", "frag"])
-                            .pick_file()
-                        {
-                            proxy.send_event(Command::Load(path)).unwrap();
-                        }
-                    }
-                    if self.shader.is_some() && ui.checkbox(&mut self.watching, "watch").changed() {
-                        if self.watching {
-                            proxy.send_event(Command::Watch).unwrap();
-                        } else {
-                            proxy.send_event(Command::Unwatch).unwrap();
-                        }
-                    }
-                });
-
-                // Shader name
-                if let Some(file) = self.shader.as_ref() {
-                    ui.colored_label(Color32::GREEN, file.main.to_str().unwrap());
-                } else {
-                    ui.colored_label(Color32::RED, "No loaded shader");
-                }
-
-                if let Some(Some(sliders)) = self
-                    .shader
-                    .as_mut()
-                    .map(|it| it.metadata.as_mut().map(|it| &mut it.sliders))
-                {
-                    ui.label("Params");
-                    for slider in sliders {
-                        match slider {
-                            Slider::Float {
-                                name,
-                                min,
-                                max,
-                                value,
-                            } => {
-                                ui.add(
-                                    DragValue::new(value)
-                                        .prefix(format!("{}: ", name))
-                                        .clamp_range(*min..=*max)
-                                        .max_decimals(3)
-                                        .speed(
-                                            *max / (window_size.width as f32
-                                                - self.settings.ui_width as f32 * scale_factor),
-                                        ),
-                                );
-                            }
-                            Slider::Color { name, value } => {
-                                let mut values = [value.x, value.y, value.z];
-                                ui.color_edit_button_rgb(&mut values);
-                                value.x = values[0];
-                                value.y = values[1];
-                                value.z = values[2];
-                            }
-                        }
-                    }
-                }
-            },
-        );
-        egui::CentralPanel::default().frame(Frame::none()).show(
-            &self.egui_platform.context(),
-            |ui| {
-                ui.image(
-                    TextureId::User(0),
-                    egui::Vec2::new(
-                        (window_size.width as f32 - self.settings.ui_width as f32 * scale_factor)
-                            / scale_factor,
-                        window_size.height as f32 / scale_factor,
-                    ),
-                );
-            },
-        );
-
-        // End the UI frame. We could now handle the output and draw the UI with the backend.
-        let (_, paint_commands) = self.egui_platform.end_frame();
-
-        self.settings.target_framerate = Duration::from_secs_f32(1.0 / framerate as f32);
-
-        self.egui_platform.context().tessellate(paint_commands)
     }
 }
 
