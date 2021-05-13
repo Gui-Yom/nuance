@@ -11,11 +11,8 @@ use nuance::Nuance;
 fn main() -> Result<()> {
     let mut power_preference = PowerPreference::LowPower;
     for arg in std::env::args() {
-        match arg.as_str() {
-            "-H" => {
-                power_preference = PowerPreference::HighPerformance;
-            }
-            _ => {}
+        if arg.as_str() == "-H" {
+            power_preference = PowerPreference::HighPerformance;
         }
     }
 

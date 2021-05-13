@@ -11,18 +11,18 @@ use shaderc::{
 use wgpu::ShaderSource;
 
 use crate::preprocessor;
-use crate::preprocessor::Slider;
+use crate::shader::Shader;
 
 pub struct ShaderLoader {
     compiler: Compiler,
-    includes: Vec<String>,
+    include_dirs: Vec<String>,
 }
 
 impl Default for ShaderLoader {
     fn default() -> Self {
         ShaderLoader {
             compiler: Compiler::new().expect("Can't create compiler"),
-            includes: Vec::with_capacity(4),
+            include_dirs: Vec::with_capacity(4),
         }
     }
 }
@@ -32,39 +32,53 @@ impl ShaderLoader {
         Self::default()
     }
 
-    pub fn add_include(&mut self, include: &str) {
-        self.includes.push(include.to_string());
+    pub fn add_include_dir(&mut self, include: &str) {
+        self.include_dirs.push(include.to_string());
     }
 
     /// Load a shader, this will try to guess its type based on the file extension
-    pub fn load_shader<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-    ) -> Result<(ShaderSource<'_>, Option<Vec<Slider>>)> {
+    pub fn load_shader<P: AsRef<Path>>(&mut self, path: P) -> Result<(Shader, ShaderSource)> {
         let path = path.as_ref();
         // Already compiled shader
         if path.extension().map_or(false, |e| e == "spv") {
             // sry for that terrible thing
             let data: Vec<u32> = fs::read(path)?.into_iter().map(|i| i as u32).collect();
             //debug!("data : {:#x?}", data);
-            Ok((ShaderSource::SpirV(Cow::Owned(data)), None))
+            // We can't extract metadata from spirv modules
+            Ok((
+                Shader {
+                    main: path.to_path_buf(),
+                    sources: vec![path.to_path_buf()],
+                    metadata: None,
+                },
+                ShaderSource::SpirV(Cow::Owned(data)),
+            ))
         } else if path
             .extension()
             .map_or(false, |e| e == "frag" || e == "glsl")
         {
             // Preprocess glsl to extract what we need
             let mut source = fs::read_to_string(path)?;
-            let params = if let Some((params, new)) = preprocessor::extract(&source) {
+            let metadata = if let Ok((metadata, new)) = preprocessor::extract(&source) {
                 // We found params and transpiled the code
                 source = new;
-                Some(params)
+                Some(metadata)
             } else {
                 // No params extracted and source isn't modified
                 None
             };
 
             self.compile_shader(path.to_str().unwrap(), &source, "main")
-                .map(|it| (it, params))
+                .map(|it| {
+                    (
+                        Shader {
+                            main: path.to_path_buf(),
+                            sources: vec![path.to_path_buf()],
+                            metadata,
+                        },
+                        it,
+                    )
+                })
         } else {
             Err(anyhow!("Unsupported shader format !"))
         }
@@ -77,7 +91,7 @@ impl ShaderLoader {
         source: &str,
         entrypoint: &str,
     ) -> Result<ShaderSource<'_>> {
-        let includes = &self.includes;
+        let includes = &self.include_dirs;
         let mut options = CompileOptions::new().unwrap();
         options.set_source_language(SourceLanguage::GLSL);
         // Required so we can introspect the shaders
@@ -102,7 +116,7 @@ impl ShaderLoader {
     }
 
     pub fn preprocess(&mut self, name: &str, source: &str, entrypoint: &str) {
-        let includes = &self.includes;
+        let includes = &self.include_dirs;
         let mut options = CompileOptions::new().unwrap();
         options.set_source_language(SourceLanguage::GLSL);
         // Required so we can introspect the shaders

@@ -3,6 +3,7 @@
 use core::panic;
 use std::ops::Deref;
 
+use anyhow::Result;
 use glsl_lang::ast::PreprocessorDefine;
 use glsl_lang::{
     ast::{
@@ -13,7 +14,6 @@ use glsl_lang::{
     transpiler::glsl::FormattingState,
     visitor::{HostMut, Visit, VisitorMut},
 };
-use log::debug;
 use log::error;
 
 use crate::types::Vec3f;
@@ -32,9 +32,9 @@ pub enum Slider {
 }
 
 /// Traverses the ast and extract useful data while converting the ast to valid glsl source
-struct ShaderMetadata {
-    sliders: Vec<Slider>,
-    still_image: bool,
+pub struct ShaderMetadata {
+    pub sliders: Vec<Slider>,
+    pub still_image: bool,
 }
 
 impl Default for ShaderMetadata {
@@ -64,7 +64,7 @@ impl VisitorMut for ShaderMetadata {
     }
 
     fn visit_preprocessor_define(&mut self, define: &mut PreprocessorDefine) -> Visit {
-        if let PreprocessorDefine::ObjectLike { ident, value } = define {
+        if let PreprocessorDefine::ObjectLike { ident, .. } = define {
             if ident.content.0.as_str() == "NUANCE_STILL_IMAGE" {
                 self.still_image = true;
             }
@@ -175,8 +175,8 @@ pub fn convert_field(field: &mut StructFieldSpecifier) {
     field.qualifier = None;
 }
 
-pub fn extract(source: &str) -> Option<(Vec<Slider>, String)> {
-    let mut extractor = ShaderMetadata::default();
+pub fn extract(source: &str) -> Result<(ShaderMetadata, String)> {
+    let mut metadata = ShaderMetadata::default();
 
     // The AST
     let (mut ast, _ctx) = TranslationUnit::parse_with_options(
@@ -187,20 +187,18 @@ pub fn extract(source: &str) -> Option<(Vec<Slider>, String)> {
             allow_rs_ident: false,
         }
         .build(),
-    )
-    .expect("Invalid GLSL source.");
+    )?;
 
     // Extract some ast juice
-    ast.visit_mut(&mut extractor);
+    ast.visit_mut(&mut metadata);
 
     let mut transpiled = String::new();
     glsl_lang::transpiler::glsl::show_translation_unit(
         &mut transpiled,
         &ast,
         FormattingState::default(),
-    )
-    .expect("Can't transpile ast");
-    Some((extractor.sliders, transpiled))
+    )?;
+    Ok((metadata, transpiled))
 }
 
 trait CoerceConst<T> {

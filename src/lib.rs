@@ -7,7 +7,7 @@ use anyhow::Result;
 use egui::{ClippedMesh, Color32, DragValue, FontDefinitions, Frame, Style, TextureId};
 use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::{Platform, PlatformDescriptor};
-use log::{debug, info};
+use log::{debug, error, info};
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use rfd::FileDialog;
 use wgpu::PowerPreference;
@@ -18,11 +18,13 @@ use winit::window::Window;
 use preprocessor::Slider;
 
 use crate::renderer::Renderer;
+use crate::shader::Shader;
 use crate::shader_loader::ShaderLoader;
 use crate::types::{Globals, Vec2u};
 
 pub mod preprocessor;
 pub mod renderer;
+pub mod shader;
 pub mod shader_loader;
 pub mod types;
 
@@ -52,6 +54,9 @@ pub struct Nuance {
     /// App settings
     settings: Settings,
 
+    /// The current loaded shader
+    shader: Option<Shader>,
+    /// Shader compiler and transpiler
     shader_loader: ShaderLoader,
     watcher: RecommendedWatcher,
     /// Receiver for watcher events
@@ -61,13 +66,9 @@ pub struct Nuance {
 
     /// The instant at which the simulation started
     sim_time: Instant,
-    /// The current loaded shader
-    curr_shader_file: Option<PathBuf>,
     watching: bool,
     /// Parameters passed to shaders
     globals: Globals,
-    /// Extra parameters passed to shaders, defined by the shader itself
-    params: Vec<Slider>,
 }
 
 impl Nuance {
@@ -109,12 +110,12 @@ impl Nuance {
                 mouse_wheel_step: 0.1,
                 ui_width: ui_width as u32,
             },
+            shader: None,
             shader_loader: ShaderLoader::new(),
             watcher: watcher(tx, Duration::from_millis(200))?,
             watcher_rx: rx,
             renderer,
             sim_time: Instant::now(),
-            curr_shader_file: None,
             watching: false,
             globals: Globals {
                 resolution: Vec2u::new(canvas_size.width, canvas_size.height),
@@ -124,10 +125,8 @@ impl Nuance {
                 time: 0.0,
                 frame: 0,
             },
-            params: Vec::new(),
         })
     }
-
     /// Runs the window, will block the thread until completion
     pub async fn run(mut self, event_loop: EventLoop<Command>) -> Result<()> {
         let mut last_draw_time = Instant::now();
@@ -155,10 +154,10 @@ impl Nuance {
                     }
                     Command::Reload => {
                         info!("Reloading !");
-                        self.load(self.curr_shader_file.as_ref().unwrap().clone());
+                        self.load(self.shader.as_ref().unwrap().main.clone());
                     }
                     Command::Watch => {
-                        if let Some(path) = self.curr_shader_file.as_ref() {
+                        if let Some(path) = self.shader.as_ref().map(|it| &it.main) {
                             self.watcher
                                 .watch(path, RecursiveMode::NonRecursive)
                                 .unwrap();
@@ -166,7 +165,7 @@ impl Nuance {
                     }
                     Command::Unwatch => {
                         self.watcher
-                            .unwatch(self.curr_shader_file.as_ref().unwrap())
+                            .unwatch(&self.shader.as_ref().unwrap().main)
                             .unwrap();
                     }
                     Command::TargetFps(new_fps) => {
@@ -245,7 +244,12 @@ impl Nuance {
                                 texture: &self.egui_platform.context().texture(),
                                 paint_jobs: &paint_jobs,
                             },
-                            &to_glsl(&self.params),
+                            &self
+                                .shader
+                                .as_ref()
+                                .map(|it| it.metadata.as_ref().map(|it| to_glsl(&it.sliders)))
+                                .unwrap_or_default()
+                                .unwrap_or_default(),
                             bytemuck::bytes_of(&self.globals),
                         )
                         .unwrap();
@@ -259,18 +263,19 @@ impl Nuance {
     fn load<P: AsRef<Path>>(&mut self, path: P) {
         info!("Loading {}", path.as_ref().to_str().unwrap());
         let reload_start = Instant::now();
-        let (shader, params) = self.shader_loader.load_shader(&path).unwrap();
-        self.params = if let Some(params) = params {
-            params
-        } else {
-            Vec::new()
-        };
-        self.renderer.new_pipeline_from_shader_source(shader);
+        let result = self.shader_loader.load_shader(&path).ok();
+        if result.is_none() {
+            error!("Can't load {}", path.as_ref().to_str().unwrap());
+            return;
+        }
+        let (shader, source) = result.unwrap();
+        self.shader = Some(shader);
+
+        self.renderer.new_pipeline_from_shader_source(source);
         // Reset the running globals
         self.globals.frame = 0;
         self.globals.time = 0.0;
         self.sim_time = Instant::now();
-        self.curr_shader_file = Some(path.as_ref().into());
 
         info!(
             "Loaded and ready ! (took {} ms)",
@@ -334,9 +339,7 @@ impl Nuance {
                             proxy.send_event(Command::Load(path)).unwrap();
                         }
                     }
-                    if self.curr_shader_file.is_some()
-                        && ui.checkbox(&mut self.watching, "watch").changed()
-                    {
+                    if self.shader.is_some() && ui.checkbox(&mut self.watching, "watch").changed() {
                         if self.watching {
                             proxy.send_event(Command::Watch).unwrap();
                         } else {
@@ -346,33 +349,39 @@ impl Nuance {
                 });
 
                 // Shader name
-                if let Some(file) = self.curr_shader_file.as_ref() {
-                    ui.colored_label(Color32::GREEN, file.to_str().unwrap());
+                if let Some(file) = self.shader.as_ref() {
+                    ui.colored_label(Color32::GREEN, file.main.to_str().unwrap());
                 } else {
                     ui.colored_label(Color32::RED, "No loaded shader");
                 }
 
-                ui.label("Params");
-                for param in self.params.iter_mut() {
-                    match param {
-                        Slider::Float {
-                            name,
-                            mut min,
-                            mut max,
-                            value,
-                        } => {
-                            ui.add(
-                                DragValue::new(value)
-                                    .prefix(format!("{}: ", name))
-                                    .clamp_range(min..=max)
-                                    .max_decimals(3)
-                                    .speed(
-                                        max / (window_size.width as f32
-                                            - self.settings.ui_width as f32 * scale_factor),
-                                    ),
-                            );
+                if let Some(Some(sliders)) = self
+                    .shader
+                    .as_mut()
+                    .map(|it| it.metadata.as_mut().map(|it| &mut it.sliders))
+                {
+                    ui.label("Params");
+                    for slider in sliders {
+                        match slider {
+                            Slider::Float {
+                                name,
+                                min,
+                                max,
+                                value,
+                            } => {
+                                ui.add(
+                                    DragValue::new(value)
+                                        .prefix(format!("{}: ", name))
+                                        .clamp_range(*min..=*max)
+                                        .max_decimals(3)
+                                        .speed(
+                                            *max / (window_size.width as f32
+                                                - self.settings.ui_width as f32 * scale_factor),
+                                        ),
+                                );
+                            }
+                            _ => {}
                         }
-                        _ => {}
                     }
                 }
             },
