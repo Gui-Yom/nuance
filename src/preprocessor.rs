@@ -3,8 +3,8 @@
 use core::panic;
 use std::ops::Deref;
 
-use anyhow::Result;
-use glsl_lang::ast::PreprocessorDefine;
+use anyhow::{anyhow, Result};
+use glsl_lang::ast::{PreprocessorDefine, TypeSpecifierNonArray};
 use glsl_lang::{
     ast::{
         Block, Expr, Identifier, IdentifierData, LayoutQualifier, LayoutQualifierSpec, SmolStr,
@@ -16,35 +16,8 @@ use glsl_lang::{
 };
 use log::error;
 
+use crate::shader::{ShaderMetadata, Slider};
 use crate::types::Vec3f;
-
-pub enum Slider {
-    Float {
-        name: String,
-        min: f32,
-        max: f32,
-        value: f32,
-    },
-    Color {
-        name: String,
-        value: Vec3f,
-    },
-}
-
-/// Traverses the ast and extract useful data while converting the ast to valid glsl source
-pub struct ShaderMetadata {
-    pub sliders: Vec<Slider>,
-    pub still_image: bool,
-}
-
-impl Default for ShaderMetadata {
-    fn default() -> Self {
-        Self {
-            sliders: Vec::new(),
-            still_image: false,
-        }
-    }
-}
 
 impl VisitorMut for ShaderMetadata {
     fn visit_block(&mut self, block: &mut Block) -> Visit {
@@ -53,8 +26,12 @@ impl VisitorMut for ShaderMetadata {
                 if id.content.0 == "params" {
                     // We got the block we searched for
                     for field in block.fields.iter_mut() {
-                        self.sliders.push(create_slider_from_field(field));
-                        convert_field(field);
+                        if let Ok(slider) = create_slider_from_field(field) {
+                            self.sliders.push(slider);
+                            convert_field(field);
+                        } else {
+                            panic!("Invalid field");
+                        }
                     }
                     convert_block(block);
                 }
@@ -97,8 +74,7 @@ impl VisitorMut for ShaderMetadata {
     }
 }
 
-// TODO different sliders for different field types
-pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Slider {
+pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> {
     let name = field
         .identifiers
         .first()
@@ -108,44 +84,69 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Slider {
         .0
         .to_string();
 
-    // TODO different sliders and params based on field type
-
-    let mut min = 0.0;
-    let mut max = 1.0;
-    let mut init = 0.0;
-    if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) = field
-        .qualifier
-        .as_ref()
-        .unwrap()
-        .qualifiers
-        .first()
-        .unwrap()
-    {
-        for qualifier in ids.iter() {
-            if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
-                match id.0.as_str() {
-                    "min" => {
-                        min = param.as_ref().unwrap().deref().coerce_const();
+    match field.ty.ty {
+        // To Slider::Float
+        TypeSpecifierNonArray::Float => {
+            let mut min = 0.0;
+            let mut max = 1.0;
+            let mut init = 0.0;
+            if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) = field
+                .qualifier
+                .as_ref()
+                .unwrap()
+                .qualifiers
+                .first()
+                .unwrap()
+            {
+                for qualifier in ids.iter() {
+                    if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
+                        match id.0.as_str() {
+                            "min" => {
+                                min = param.as_ref().unwrap().deref().coerce_const();
+                            }
+                            "max" => {
+                                max = param.as_ref().unwrap().deref().coerce_const();
+                            }
+                            "init" => {
+                                init = param.as_ref().unwrap().deref().coerce_const();
+                            }
+                            other => {
+                                error!("Wrong slider setting : {}", other)
+                            }
+                        }
                     }
-                    "max" => {
-                        max = param.as_ref().unwrap().deref().coerce_const();
-                    }
-                    "init" => {
-                        init = param.as_ref().unwrap().deref().coerce_const();
-                    }
-                    other => {
-                        error!("Wrong slider setting : {}", other)
+                }
+            }
+            return Ok(Slider::Float {
+                name,
+                min,
+                max,
+                value: init,
+            });
+        }
+        // To Slider::Color if color layout qualifier is set
+        TypeSpecifierNonArray::Vec3 => {
+            if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) = field
+                .qualifier
+                .as_ref()
+                .unwrap()
+                .qualifiers
+                .first()
+                .unwrap()
+            {
+                if let Some(LayoutQualifierSpec::Identifier(ident, _)) = ids.first() {
+                    if ident.content.0.as_str() == "color" {
+                        return Ok(Slider::Color {
+                            name,
+                            value: Vec3f::zero(),
+                        });
                     }
                 }
             }
         }
+        _ => {}
     }
-    Slider::Float {
-        name,
-        min,
-        max,
-        value: init,
-    }
+    Err(anyhow!("Invalid field in params block"))
 }
 
 /// Replace the layout(params) with a predefined layout(set=?, binding=?)

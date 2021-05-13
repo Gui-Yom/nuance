@@ -156,7 +156,7 @@ impl Renderer {
 
         let params_buffer = device.create_buffer(&BufferDescriptor {
             label: Some("params ubo"),
-            size: 12,
+            size: 16,
             usage: BufferUsage::UNIFORM | BufferUsage::COPY_DST,
             mapped_at_creation: false,
         });

@@ -15,10 +15,8 @@ use winit::event::{Event, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
 use winit::window::Window;
 
-use preprocessor::Slider;
-
 use crate::renderer::Renderer;
-use crate::shader::Shader;
+use crate::shader::{Shader, Slider};
 use crate::shader_loader::ShaderLoader;
 use crate::types::{Globals, Vec2u};
 
@@ -380,7 +378,13 @@ impl Nuance {
                                         ),
                                 );
                             }
-                            _ => {}
+                            Slider::Color { name, value } => {
+                                let mut values = [value.x, value.y, value.z];
+                                ui.color_edit_button_rgb(&mut values);
+                                value.x = values[0];
+                                value.y = values[1];
+                                value.z = values[2];
+                            }
                         }
                     }
                 }
@@ -417,7 +421,12 @@ fn to_glsl<'a>(iter: impl IntoIterator<Item = &'a Slider>) -> Vec<u8> {
             Slider::Float { value, .. } => {
                 floats.push(*value);
             }
-            _ => {}
+            Slider::Color { value, .. } => {
+                floats.push(value.x);
+                floats.push(value.y);
+                floats.push(value.z);
+                floats.push(0.0);
+            }
         }
     }
     // We reinterpret our floats to bytes
