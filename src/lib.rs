@@ -163,9 +163,13 @@ impl Nuance {
                         }
                     }
                     Command::Unwatch => {
-                        self.watcher
-                            .unwatch(&self.shader.as_ref().unwrap().main)
-                            .unwrap();
+                        if self.watching {
+                            if let Some(shader) = self.shader.as_ref() {
+                                self.watcher
+                                    .unwatch(&shader.main)
+                                    .expect("Unexpected state");
+                            }
+                        }
                     }
                     Command::Restart => {
                         info!("Restarting !");
