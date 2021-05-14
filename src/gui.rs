@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use egui::{ClippedMesh, Color32, CtxRef, DragValue, Frame, Texture, TextureId};
+use egui::special_emojis::GITHUB;
+use egui::{ClippedMesh, Color32, CtxRef, DragValue, Frame, Texture, TextureId, Ui};
 use egui_winit_platform::Platform;
 use rfd::FileDialog;
 use winit::event::Event;
@@ -9,8 +10,8 @@ use winit::event_loop::EventLoopProxy;
 use winit::window::Window;
 
 use crate::shader::{Shader, Slider};
-use crate::types::Globals;
-use crate::{Command, Nuance, Settings};
+use crate::types::{Globals, Vec3f};
+use crate::{Command, Settings};
 
 pub struct Gui {
     /// Egui subsystem
@@ -120,40 +121,25 @@ impl Gui {
                 {
                     ui.separator();
                     ui.label("Params");
-                    let ui_width = self.ui_width;
                     egui::Grid::new("params grid").striped(true).show(ui, |ui| {
                         for slider in sliders {
-                            match slider {
-                                Slider::Float {
-                                    name,
-                                    min,
-                                    max,
-                                    value,
-                                } => {
-                                    ui.label(name.as_str());
-                                    ui.add(
-                                        DragValue::new(value)
-                                            .clamp_range(*min..=*max)
-                                            .max_decimals(3)
-                                            .speed(
-                                                *max / (window_size.width as f32
-                                                    - ui_width as f32 * scale_factor),
-                                            ),
-                                    );
-                                }
-                                Slider::Color { name, value } => {
-                                    ui.label(name.as_str());
-                                    let mut values = [value.x, value.y, value.z];
-                                    ui.color_edit_button_rgb(&mut values);
-                                    value.x = values[0];
-                                    value.y = values[1];
-                                    value.z = values[2];
-                                }
-                            }
+                            slider.draw(ui);
                             ui.end_row();
                         }
                     });
                 }
+
+                ui.add_space(ui.available_size().y - 2.0 * ui.spacing().item_spacing.y - 30.0);
+                ui.vertical_centered(|ui| {
+                    ui.hyperlink_to(
+                        format!("{} Manual", GITHUB),
+                        "https://github.com/Gui-Yom/nuance/blob/master/MANUAL.md",
+                    );
+                    ui.hyperlink_to(
+                        format!("{} source code", GITHUB),
+                        "https://github.com/Gui-Yom/nuance",
+                    );
+                });
             },
         );
         egui::CentralPanel::default()
@@ -183,5 +169,37 @@ impl Gui {
 
     pub fn texture(&self) -> Arc<Texture> {
         self.egui_platform.context().texture()
+    }
+}
+
+impl Slider {
+    pub fn draw(&mut self, ui: &mut Ui) {
+        match self {
+            Slider::Float {
+                name,
+                min,
+                max,
+                value,
+            } => {
+                ui.label(name.as_str());
+                ui.add(
+                    DragValue::new(value)
+                        .clamp_range(*min..=*max)
+                        .max_decimals(3),
+                );
+            }
+            Slider::Color {
+                name,
+                value: Vec3f { x, y, z },
+            } => {
+                ui.label(name.as_str());
+                let mut values = [*x, *y, *z];
+                ui.color_edit_button_rgb(&mut values);
+                // No array destructuring :(
+                *x = values[0];
+                *y = values[1];
+                *z = values[2];
+            }
+        }
     }
 }
