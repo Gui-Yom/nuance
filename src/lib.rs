@@ -117,11 +117,8 @@ impl Nuance {
             watching: false,
             globals: Globals {
                 resolution: Vec2u::new(canvas_size.width, canvas_size.height),
-                mouse: Vec2u::zero(),
-                mouse_wheel: 0.0,
                 ratio: (canvas_size.width) as f32 / canvas_size.height as f32,
-                time: 0.0,
-                frame: 0,
+                ..Default::default()
             },
         })
     }
@@ -174,9 +171,7 @@ impl Nuance {
                     Command::Restart => {
                         info!("Restarting !");
                         // Reset the running globals
-                        self.globals.frame = 0;
-                        self.globals.time = 0.0;
-                        self.globals.mouse_wheel = 0.0;
+                        self.globals.reset();
                         self.sim_time = Instant::now();
                     }
                     Command::Exit => {
@@ -286,8 +281,7 @@ impl Nuance {
 
         self.shader = Some(shader);
         // Reset the running globals
-        self.globals.frame = 0;
-        self.globals.time = 0.0;
+        self.globals.reset();
         self.sim_time = Instant::now();
 
         info!(
@@ -314,7 +308,7 @@ fn to_glsl<'a>(iter: impl IntoIterator<Item = &'a Slider>) -> Vec<u8> {
         }
     }
     // We reinterpret our floats to bytes
-    // FIXME probably won't work for more complex types
+    // FIXME CRITICAL, probably won't work for more complex types
     unsafe {
         let ratio = mem::size_of::<f32>() / mem::size_of::<u8>();
 

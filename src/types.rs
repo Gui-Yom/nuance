@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Pod, Zeroable)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable, Default)]
 pub struct Vec2u {
     pub x: u32,
     pub y: u32,
@@ -13,10 +13,12 @@ impl Vec2u {
     }
 
     pub fn zero() -> Self {
-        Self { x: 0, y: 0 }
+        Self::default()
     }
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable, Default)]
 pub struct Vec3f {
     pub x: f32,
     pub y: f32,
@@ -29,18 +31,14 @@ impl Vec3f {
     }
 
     pub fn zero() -> Self {
-        Self {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-        }
+        Self::default()
     }
 }
 
 /// The globals we pass to the fragment shader
 /// aligned to 32bit words
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Pod, Zeroable)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable, Default)]
 pub struct Globals {
     /// Window resolution
     pub resolution: Vec2u,
@@ -54,4 +52,12 @@ pub struct Globals {
     pub time: f32,
     /// Number of frame
     pub frame: u32,
+}
+
+impl Globals {
+    pub fn reset(&mut self) {
+        self.frame = 0;
+        self.time = 0.0;
+        self.mouse_wheel = 0.0;
+    }
 }
