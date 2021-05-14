@@ -1,23 +1,17 @@
-use crate::renderer::shader::ShaderRenderPass;
 use anyhow::{Context, Result};
 use egui::ClippedMesh;
 use egui_wgpu_backend::ScreenDescriptor;
 use log::debug;
 use wgpu::{
-    include_spirv, Adapter, BackendBit, BindGroup, BindGroupDescriptor, BindGroupEntry,
-    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, Buffer,
-    BufferBinding, BufferBindingType, BufferDescriptor, BufferUsage, Color, ColorTargetState,
-    ColorWrite, CommandEncoder, CommandEncoderDescriptor, Device, Extent3d, Features,
-    FragmentState, FrontFace, Instance, Limits, LoadOp, MultisampleState, Operations,
-    PipelineLayout, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PresentMode,
-    PrimitiveState, PrimitiveTopology, PushConstantRange, Queue, RenderBundle,
-    RenderBundleDescriptor, RenderBundleEncoderDescriptor, RenderPass, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
-    ShaderFlags, ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStage, Surface,
-    SwapChain, SwapChainDescriptor, Texture, TextureDescriptor, TextureFormat, TextureUsage,
-    TextureView, TextureViewDescriptor, VertexState,
+    include_spirv, Adapter, BackendBit, Color, CommandEncoderDescriptor, Device, Extent3d,
+    Features, Instance, Limits, PowerPreference, PresentMode, Queue, RequestAdapterOptions,
+    ShaderFlags, ShaderModule, ShaderModuleDescriptor, ShaderSource, Surface, SwapChain,
+    SwapChainDescriptor, Texture, TextureDescriptor, TextureFormat, TextureUsage,
+    TextureViewDescriptor,
 };
 use winit::window::Window;
+
+use crate::renderer::shader::ShaderRenderPass;
 
 mod shader;
 

@@ -1,23 +1,16 @@
-use egui_wgpu_backend::ScreenDescriptor;
-use log::debug;
 use wgpu::{
-    include_spirv, Adapter, BackendBit, BindGroup, BindGroupDescriptor, BindGroupEntry,
-    BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, Buffer,
-    BufferBinding, BufferBindingType, BufferDescriptor, BufferUsage, Color, ColorTargetState,
-    ColorWrite, CommandEncoder, CommandEncoderDescriptor, Device, Extent3d, Features,
-    FragmentState, FrontFace, Instance, Limits, LoadOp, MultisampleState, Operations,
-    PipelineLayout, PipelineLayoutDescriptor, PolygonMode, PowerPreference, PresentMode,
-    PrimitiveState, PrimitiveTopology, PushConstantRange, Queue, RenderBundle,
-    RenderBundleDescriptor, RenderBundleEncoderDescriptor, RenderPass, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
-    ShaderFlags, ShaderModule, ShaderModuleDescriptor, ShaderSource, ShaderStage, Surface,
-    SwapChain, SwapChainDescriptor, Texture, TextureDescriptor, TextureFormat, TextureUsage,
-    TextureView, TextureViewDescriptor, VertexState,
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingResource, BindingType, Buffer, BufferBinding, BufferBindingType,
+    BufferDescriptor, BufferUsage, Color, ColorTargetState, ColorWrite, CommandEncoder, Device,
+    FragmentState, FrontFace, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor,
+    PolygonMode, PrimitiveState, PrimitiveTopology, PushConstantRange, Queue,
+    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
+    ShaderModule, ShaderStage, TextureFormat, TextureView, VertexState,
 };
 
 pub(crate) struct ShaderRenderPass {
-    params_bind_group: BindGroup,
-    params_buffer: Buffer,
+    params_bind_group: Option<BindGroup>,
+    params_buffer: Option<Buffer>,
     pipeline: RenderPipeline,
 }
 
@@ -30,43 +23,56 @@ impl ShaderRenderPass {
         params_buffer_size: u64,
         format: TextureFormat,
     ) -> Self {
-        let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("main bind group layout"),
-            entries: &[BindGroupLayoutEntry {
-                binding: 0,
-                visibility: ShaderStage::FRAGMENT,
-                ty: BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        });
+        let bind_group_layout;
+        let params_buffer;
+        let params_bind_group;
+        if params_buffer_size > 0 {
+            bind_group_layout = Some(device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: Some("main bind group layout"),
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStage::FRAGMENT,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            }));
 
-        let params_buffer = device.create_buffer(&BufferDescriptor {
-            label: Some("params ubo"),
-            size: params_buffer_size,
-            usage: BufferUsage::UNIFORM | BufferUsage::COPY_DST,
-            mapped_at_creation: false,
-        });
+            params_buffer = Some(device.create_buffer(&BufferDescriptor {
+                label: Some("params ubo"),
+                size: params_buffer_size,
+                usage: BufferUsage::UNIFORM | BufferUsage::COPY_DST,
+                mapped_at_creation: false,
+            }));
 
-        let params_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("main bind group"),
-            layout: &bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: BindingResource::Buffer(BufferBinding {
-                    buffer: &params_buffer,
-                    offset: 0,
-                    size: None,
-                }),
-            }],
-        });
+            params_bind_group = Some(device.create_bind_group(&BindGroupDescriptor {
+                label: Some("main bind group"),
+                layout: bind_group_layout.as_ref().unwrap(),
+                entries: &[BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::Buffer(BufferBinding {
+                        buffer: params_buffer.as_ref().unwrap(),
+                        offset: 0,
+                        size: None,
+                    }),
+                }],
+            }));
+        } else {
+            bind_group_layout = None;
+            params_buffer = None;
+            params_bind_group = None;
+        }
 
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("nuance shader pipeline layout"),
-            bind_group_layouts: &[&bind_group_layout],
+            bind_group_layouts: &if let Some(layout) = &bind_group_layout {
+                vec![layout]
+            } else {
+                vec![]
+            },
             push_constant_ranges: &[PushConstantRange {
                 stages: ShaderStage::FRAGMENT,
                 range: 0..push_constants_size,
@@ -116,8 +122,10 @@ impl ShaderRenderPass {
     }
 
     pub(crate) fn update_buffers(&self, queue: &Queue, params_buffer: &[u8]) {
-        // Update the params buffer on the gpu side
-        queue.write_buffer(&self.params_buffer, 0, params_buffer);
+        if let Some(buffer) = &self.params_buffer {
+            // Update the params buffer on the gpu side
+            queue.write_buffer(buffer, 0, params_buffer);
+        }
     }
 
     pub(crate) fn execute(
@@ -138,7 +146,9 @@ impl ShaderRenderPass {
             }],
             depth_stencil_attachment: None,
         });
-        rpass.set_bind_group(0, &self.params_bind_group, &[]);
+        if let Some(bind_group) = &self.params_bind_group {
+            rpass.set_bind_group(0, bind_group, &[]);
+        }
         rpass.set_pipeline(&self.pipeline);
         // Push constants mapped to uniform block
         rpass.set_push_constants(ShaderStage::FRAGMENT, 0, push_constants);

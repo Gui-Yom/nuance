@@ -35,10 +35,10 @@ impl ShaderMetadata {
         let mut size = 0;
         for slider in self.sliders.iter() {
             match slider {
-                &Slider::Float { .. } => {
+                Slider::Float { .. } => {
                     size += 4;
                 }
-                &Slider::Color { .. } => {
+                Slider::Color { .. } => {
                     size += 16;
                 }
             }
