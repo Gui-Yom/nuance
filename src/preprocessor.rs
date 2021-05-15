@@ -1,10 +1,11 @@
 //! Extract information from glsl source and transpiles it to valid glsl source code.
 
 use core::panic;
+use std::borrow::Borrow;
 use std::ops::Deref;
 
 use anyhow::{anyhow, Result};
-use glsl_lang::ast::{PreprocessorDefine, TypeSpecifierNonArray};
+use glsl_lang::ast::{FunIdentifier, PreprocessorDefine, TypeSpecifier, TypeSpecifierNonArray};
 use glsl_lang::{
     ast::{
         Block, Expr, Identifier, IdentifierData, LayoutQualifier, LayoutQualifierSpec, SmolStr,
@@ -84,7 +85,7 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
         .0
         .to_string();
 
-    debug!("{:#?}", field);
+    //debug!("{:#?}", field);
 
     match field.ty.ty {
         // To Slider::Float
@@ -102,15 +103,15 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
             {
                 for qualifier in ids.iter() {
                     if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
-                        match id.0.as_str() {
+                        match id.content.0.as_str() {
                             "min" => {
-                                min = param.as_ref().unwrap().deref().coerce_const();
+                                min = param.as_ref().unwrap().coerce_const();
                             }
                             "max" => {
-                                max = param.as_ref().unwrap().deref().coerce_const();
+                                max = param.as_ref().unwrap().coerce_const();
                             }
                             "init" => {
-                                init = param.as_ref().unwrap().deref().coerce_const();
+                                init = param.as_ref().unwrap().coerce_const();
                             }
                             other => {
                                 error!("Wrong slider setting : {}", other)
@@ -136,14 +137,45 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
                 .first()
                 .unwrap()
             {
-                if let Some(LayoutQualifierSpec::Identifier(ident, expr)) = ids.first() {
-                    if ident.content.0.as_str() == "color" {
-                        return Ok(Slider::Color {
-                            name,
-                            value: Vector3::from([0.0, 0.0, 0.0]),
-                        });
+                let mut value: Vector3<f32> = Vector3::from([0.0, 0.0, 0.0]);
+                let mut color = false;
+
+                for qualifier in ids.iter() {
+                    if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
+                        match id.content.0.as_str() {
+                            "color" => {
+                                color = true;
+                            }
+                            "init" => {
+                                if let Some(Expr::FunCall(
+                                    FunIdentifier::TypeSpecifier(TypeSpecifier { ty, .. }),
+                                    params,
+                                )) = param.as_deref()
+                                {
+                                    if *ty == TypeSpecifierNonArray::Vec3 && params.len() == 3 {
+                                        value = Vector3::from([
+                                            params[0].coerce_const(),
+                                            params[1].coerce_const(),
+                                            params[2].coerce_const(),
+                                        ]);
+                                        continue;
+                                    }
+                                    error!("Invalid initializer !");
+                                }
+                            }
+                            other => {
+                                error!("Unsupported setting : {}", other)
+                            }
+                        }
+                    } else {
+                        error!("Invalid qualifier shared");
                     }
                 }
+                return Ok(if color {
+                    Slider::Color { name, value }
+                } else {
+                    Slider::Vec3 { name, value }
+                });
             }
         }
         _ => {}
@@ -208,9 +240,12 @@ trait CoerceConst<T> {
     fn coerce_const(&self) -> T;
 }
 
-impl CoerceConst<f32> for Expr {
+impl<T> CoerceConst<f32> for T
+where
+    T: Borrow<Expr>,
+{
     fn coerce_const(&self) -> f32 {
-        match self {
+        match self.borrow() {
             Expr::IntConst(value) => *value as f32,
             Expr::UIntConst(value) => *value as f32,
             Expr::FloatConst(value) => *value,

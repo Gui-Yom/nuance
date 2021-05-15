@@ -76,7 +76,8 @@ entire application build time.
 Ideas and tasks I should work on in no particular order.
 
 - Merge params uniform block with push_constant block
-- Error handling (currently crashes if something goes wrong)
+- Preprocessor error handling & reporting
+- Complete error handling (currently crashes if something goes wrong)
 - GPU hot switch (for when you see that you need some extra gpu juice)
 - Bind textures as input
 - Bind buffers as output

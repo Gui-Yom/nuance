@@ -13,6 +13,10 @@ pub enum Slider {
         name: String,
         value: Vector2<f32>,
     },
+    Vec3 {
+        name: String,
+        value: Vector3<f32>,
+    },
     Color {
         name: String,
         value: Vector3<f32>,
@@ -41,6 +45,9 @@ impl ShaderMetadata {
             match slider {
                 Slider::Float { .. } => {
                     size += 4;
+                }
+                Slider::Vec3 { .. } => {
+                    size += 16;
                 }
                 Slider::Color { .. } => {
                     size += 16;

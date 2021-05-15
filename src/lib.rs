@@ -304,6 +304,12 @@ fn to_glsl<'a>(iter: impl IntoIterator<Item = &'a Slider>) -> Vec<u8> {
             Slider::Float { value, .. } => {
                 floats.push(*value);
             }
+            Slider::Vec3 { value, .. } => {
+                floats.push(value.x);
+                floats.push(value.y);
+                floats.push(value.z);
+                floats.push(0.0);
+            }
             Slider::Color { value, .. } => {
                 floats.push(value.x);
                 floats.push(value.y);

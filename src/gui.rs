@@ -189,6 +189,14 @@ impl Slider {
                         .max_decimals(3),
                 );
             }
+            Slider::Vec3 { name, value } => {
+                ui.label(name.as_str());
+                ui.columns(3, |columns| {
+                    columns[0].add(DragValue::new(&mut value.x).max_decimals(3));
+                    columns[1].add(DragValue::new(&mut value.y).max_decimals(3));
+                    columns[2].add(DragValue::new(&mut value.z).max_decimals(3));
+                });
+            }
             Slider::Color { name, value } => {
                 ui.label(name.as_str());
                 // I feel bad for using unsafe BUT mint implements AsRef but not AsMut,
