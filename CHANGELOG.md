@@ -7,6 +7,26 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Color picker for `layout(color) vec3`
+- Triple drag value for `vec3`
+- Grid to display sliders
+- Manual documenting shader syntax
+- Links to repo and manual
+
+### Changed
+
+- Split more things in module, major code refactor
+- More error handling
+- Ensure std430 alignment for Globals struct
+
+### Fixed
+
+- Correctly set params buffer size
+- Unwatch old shader when loading a new one
+- Do not create a buffer binding when there is no params (no buffer with size 0)
+
 ## [0.2.0] - 2021-05-12
 
 ### Added
