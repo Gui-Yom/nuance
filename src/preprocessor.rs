@@ -14,10 +14,10 @@ use glsl_lang::{
     transpiler::glsl::FormattingState,
     visitor::{HostMut, Visit, VisitorMut},
 };
-use log::error;
+use log::{debug, error};
+use mint::Vector3;
 
 use crate::shader::{ShaderMetadata, Slider};
-use crate::types::Vec3f;
 
 impl VisitorMut for ShaderMetadata {
     fn visit_block(&mut self, block: &mut Block) -> Visit {
@@ -84,6 +84,8 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
         .0
         .to_string();
 
+    debug!("{:#?}", field);
+
     match field.ty.ty {
         // To Slider::Float
         TypeSpecifierNonArray::Float => {
@@ -134,11 +136,11 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
                 .first()
                 .unwrap()
             {
-                if let Some(LayoutQualifierSpec::Identifier(ident, _)) = ids.first() {
+                if let Some(LayoutQualifierSpec::Identifier(ident, expr)) = ids.first() {
                     if ident.content.0.as_str() == "color" {
                         return Ok(Slider::Color {
                             name,
-                            value: Vec3f::zero(),
+                            value: Vector3::from([0.0, 0.0, 0.0]),
                         });
                     }
                 }

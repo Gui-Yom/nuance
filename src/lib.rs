@@ -4,22 +4,24 @@ use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use egui::{ClippedMesh, Color32, DragValue, FontDefinitions, Frame, Style, TextureId};
+use crevice::std430::AsStd430;
+use crevice::std430::Std430;
+use egui::{FontDefinitions, Style};
 use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::{Platform, PlatformDescriptor};
 use log::{debug, error, info};
+use mint::Vector2;
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
-use rfd::FileDialog;
 use wgpu::PowerPreference;
 use winit::event::{Event, MouseScrollDelta, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop, EventLoopProxy};
+use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::Window;
 
 use crate::gui::Gui;
 use crate::renderer::Renderer;
 use crate::shader::{Shader, Slider};
 use crate::shader_loader::ShaderLoader;
-use crate::types::{Globals, Vec2u};
+use crate::types::Globals;
 
 mod gui;
 pub mod preprocessor;
@@ -86,7 +88,7 @@ impl Nuance {
             &window,
             power_preference,
             canvas_size.into(),
-            mem::size_of::<Globals>() as u32,
+            Globals::std430_size_static() as u32,
         )
         .await?;
 
@@ -116,9 +118,12 @@ impl Nuance {
             sim_time: Instant::now(),
             watching: false,
             globals: Globals {
-                resolution: Vec2u::new(canvas_size.width, canvas_size.height),
+                resolution: Vector2::from([canvas_size.width, canvas_size.height]),
+                mouse: Vector2::from([0, 0]),
+                mouse_wheel: 0.0,
                 ratio: (canvas_size.width) as f32 / canvas_size.height as f32,
-                ..Default::default()
+                time: 0.0,
+                frame: 0,
             },
         })
     }
@@ -186,10 +191,10 @@ impl Nuance {
                     } => {
                         let scale_factor = self.window.scale_factor();
                         if position.x > self.gui.ui_width as f64 * scale_factor {
-                            self.globals.mouse = Vec2u::new(
+                            self.globals.mouse = Vector2::from([
                                 (position.x - self.gui.ui_width as f64 * scale_factor) as u32,
                                 position.y as u32,
-                            );
+                            ]);
                         }
                     }
                     WindowEvent::MouseWheel {
@@ -250,7 +255,7 @@ impl Nuance {
                                 .map(|it| it.metadata.as_ref().map(|it| to_glsl(&it.sliders)))
                                 .unwrap_or_default()
                                 .unwrap_or_default(),
-                            bytemuck::bytes_of(&self.globals),
+                            self.globals.as_std430().as_bytes(),
                         )
                         .unwrap();
                     self.globals.frame += 1;
@@ -277,7 +282,7 @@ impl Nuance {
         };
 
         self.renderer
-            .set_shader(source, mem::size_of::<Globals>() as u32, buffer_size);
+            .set_shader(source, Globals::std430_size_static() as u32, buffer_size);
 
         self.shader = Some(shader);
         // Reset the running globals
@@ -305,6 +310,7 @@ fn to_glsl<'a>(iter: impl IntoIterator<Item = &'a Slider>) -> Vec<u8> {
                 floats.push(value.z);
                 floats.push(0.0);
             }
+            _ => {}
         }
     }
     // We reinterpret our floats to bytes

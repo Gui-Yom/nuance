@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::types::Vec3f;
+use mint::{Vector2, Vector3};
 
 pub enum Slider {
     Float {
@@ -9,9 +9,13 @@ pub enum Slider {
         max: f32,
         value: f32,
     },
+    Vec2 {
+        name: String,
+        value: Vector2<f32>,
+    },
     Color {
         name: String,
-        value: Vec3f,
+        value: Vector3<f32>,
     },
 }
 
@@ -41,6 +45,7 @@ impl ShaderMetadata {
                 Slider::Color { .. } => {
                     size += 16;
                 }
+                _ => {}
             }
         }
         size

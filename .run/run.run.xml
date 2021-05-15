@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="run" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="run -- shaders/sliders.frag" />
+    <option name="command" value="run -- -H" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <option name="channel" value="DEFAULT" />
     <option name="requiredFeatures" value="true" />

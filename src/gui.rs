@@ -1,3 +1,4 @@
+use std::mem;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -10,7 +11,7 @@ use winit::event_loop::EventLoopProxy;
 use winit::window::Window;
 
 use crate::shader::{Shader, Slider};
-use crate::types::{Globals, Vec3f};
+use crate::types::Globals;
 use crate::{Command, Settings};
 
 pub struct Gui {
@@ -188,18 +189,14 @@ impl Slider {
                         .max_decimals(3),
                 );
             }
-            Slider::Color {
-                name,
-                value: Vec3f { x, y, z },
-            } => {
+            Slider::Color { name, value } => {
                 ui.label(name.as_str());
-                let mut values = [*x, *y, *z];
-                ui.color_edit_button_rgb(&mut values);
-                // No array destructuring :(
-                *x = values[0];
-                *y = values[1];
-                *z = values[2];
+                // I feel bad for using unsafe BUT mint implements AsRef but not AsMut,
+                // so this right here is the same implementation as AsRef but mutable
+                let ref_mut = unsafe { mem::transmute(value) };
+                ui.color_edit_button_rgb(ref_mut);
             }
+            _ => {}
         }
     }
 }
