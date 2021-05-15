@@ -5,7 +5,9 @@ use std::borrow::Borrow;
 use std::ops::Deref;
 
 use anyhow::{anyhow, Result};
-use glsl_lang::ast::{FunIdentifier, PreprocessorDefine, TypeSpecifier, TypeSpecifierNonArray};
+use glsl_lang::ast::{
+    FunIdentifier, PreprocessorDefine, TypeQualifier, TypeSpecifier, TypeSpecifierNonArray,
+};
 use glsl_lang::{
     ast::{
         Block, Expr, Identifier, IdentifierData, LayoutQualifier, LayoutQualifierSpec, SmolStr,
@@ -93,28 +95,26 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
             let mut min = 0.0;
             let mut max = 1.0;
             let mut init = 0.0;
-            if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) = field
-                .qualifier
-                .as_ref()
-                .unwrap()
-                .qualifiers
-                .first()
-                .unwrap()
-            {
-                for qualifier in ids.iter() {
-                    if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
-                        match id.content.0.as_str() {
-                            "min" => {
-                                min = param.as_ref().unwrap().coerce_const();
-                            }
-                            "max" => {
-                                max = param.as_ref().unwrap().coerce_const();
-                            }
-                            "init" => {
-                                init = param.as_ref().unwrap().coerce_const();
-                            }
-                            other => {
-                                error!("Wrong slider setting : {}", other)
+
+            if let Some(TypeQualifier { qualifiers }) = field.qualifier.as_ref() {
+                if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) =
+                    qualifiers.first().unwrap()
+                {
+                    for qualifier in ids.iter() {
+                        if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
+                            match id.content.0.as_str() {
+                                "min" => {
+                                    min = param.as_ref().unwrap().coerce_const();
+                                }
+                                "max" => {
+                                    max = param.as_ref().unwrap().coerce_const();
+                                }
+                                "init" => {
+                                    init = param.as_ref().unwrap().coerce_const();
+                                }
+                                other => {
+                                    error!("Wrong slider setting : {}", other)
+                                }
                             }
                         }
                     }
@@ -129,54 +129,51 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
         }
         // To Slider::Color if color layout qualifier is set
         TypeSpecifierNonArray::Vec3 => {
-            if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) = field
-                .qualifier
-                .as_ref()
-                .unwrap()
-                .qualifiers
-                .first()
-                .unwrap()
-            {
-                let mut value: Vector3<f32> = Vector3::from([0.0, 0.0, 0.0]);
-                let mut color = false;
+            let mut value: Vector3<f32> = Vector3::from([0.0, 0.0, 0.0]);
+            let mut color = false;
 
-                for qualifier in ids.iter() {
-                    if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
-                        match id.content.0.as_str() {
-                            "color" => {
-                                color = true;
-                            }
-                            "init" => {
-                                if let Some(Expr::FunCall(
-                                    FunIdentifier::TypeSpecifier(TypeSpecifier { ty, .. }),
-                                    params,
-                                )) = param.as_deref()
-                                {
-                                    if *ty == TypeSpecifierNonArray::Vec3 && params.len() == 3 {
-                                        value = Vector3::from([
-                                            params[0].coerce_const(),
-                                            params[1].coerce_const(),
-                                            params[2].coerce_const(),
-                                        ]);
-                                        continue;
+            if let Some(TypeQualifier { qualifiers }) = field.qualifier.as_ref() {
+                if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) =
+                    qualifiers.first().unwrap()
+                {
+                    for qualifier in ids.iter() {
+                        if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
+                            match id.content.0.as_str() {
+                                "color" => {
+                                    color = true;
+                                }
+                                "init" => {
+                                    if let Some(Expr::FunCall(
+                                        FunIdentifier::TypeSpecifier(TypeSpecifier { ty, .. }),
+                                        params,
+                                    )) = param.as_deref()
+                                    {
+                                        if *ty == TypeSpecifierNonArray::Vec3 && params.len() == 3 {
+                                            value = Vector3::from([
+                                                params[0].coerce_const(),
+                                                params[1].coerce_const(),
+                                                params[2].coerce_const(),
+                                            ]);
+                                            continue;
+                                        }
+                                        error!("Invalid initializer !");
                                     }
-                                    error!("Invalid initializer !");
+                                }
+                                other => {
+                                    error!("Unsupported setting : {}", other)
                                 }
                             }
-                            other => {
-                                error!("Unsupported setting : {}", other)
-                            }
+                        } else {
+                            error!("Invalid qualifier shared");
                         }
-                    } else {
-                        error!("Invalid qualifier shared");
                     }
                 }
-                return Ok(if color {
-                    Slider::Color { name, value }
-                } else {
-                    Slider::Vec3 { name, value }
-                });
             }
+            return Ok(if color {
+                Slider::Color { name, value }
+            } else {
+                Slider::Vec3 { name, value }
+            });
         }
         _ => {}
     }

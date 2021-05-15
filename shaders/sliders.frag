@@ -14,7 +14,7 @@
 
 layout(params) uniform Params {
     layout(color, init = vec3(1.0, 0.0, 0)) vec3 rgb;
-    layout() vec3 pos;
+    vec3 pos;
 };
 
 void main() {
