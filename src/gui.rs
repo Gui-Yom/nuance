@@ -122,12 +122,15 @@ impl Gui {
                 {
                     ui.separator();
                     ui.label("Params");
-                    egui::Grid::new("params grid").striped(true).show(ui, |ui| {
-                        for slider in sliders {
-                            slider.draw(ui);
-                            ui.end_row();
-                        }
-                    });
+                    egui::Grid::new("params grid")
+                        .striped(true)
+                        //.max_col_width(self.ui_width as f32 - 20.0)
+                        .show(ui, |ui| {
+                            for slider in sliders {
+                                slider.draw(ui);
+                                ui.end_row();
+                            }
+                        });
                 }
 
                 ui.add_space(ui.available_size().y - 2.0 * ui.spacing().item_spacing.y - 30.0);
@@ -191,6 +194,7 @@ impl Slider {
             }
             Slider::Vec3 { name, value } => {
                 ui.label(name.as_str());
+                ui.spacing_mut().item_spacing.x = 2.0;
                 ui.columns(3, |columns| {
                     columns[0].add(DragValue::new(&mut value.x).max_decimals(3));
                     columns[1].add(DragValue::new(&mut value.y).max_decimals(3));
