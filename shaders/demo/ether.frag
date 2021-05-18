@@ -18,7 +18,7 @@ float map(vec3 p) {
 }
 
 void main() {
-    vec3 p = vec3(gl_FragCoord.xy / uResolution.y - vec2(.9, .5), -1.0);
+    vec3 p = vec3(gl_FragCoord.xy / uResolution.y - vec2(.5, .5), -1.0);
     vec3 cl = vec3(0.);
     float d = 2.5;
     for (int i=0; i<=5; i++) {
