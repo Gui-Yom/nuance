@@ -23,27 +23,43 @@ codegen-units = 4
 # GPU API
 wgpu = "0.8"
 # Windowing
-winit = "0.24"
+winit = { version = "0.25", features = ["mint"] }
 # Async runtime
 futures-executor = "0.3"
-# glsl to spirv
+# Shader compilation
 shaderc = "0.7"
-# parse glsl
+# GLSL parser
 glsl-lang = "0.1"
 # Error types
 anyhow = "1"
 # Math types
 mint = "0.5"
-# Converting types to bytes
-crevice = { version = "0.6.0", path = "../crevice" }
-# File watcher
+# Filesystem watcher
 notify = "4"
 # File dialogs
 rfd = "0.3"
-# logger api
+# Logger api
 log = { version = "0.4", features = ["std"] }
+# Logger implementation
 simplelog = "0.10"
 # GUI
-egui = { version = "0.12" }#, git = "https://github.com/emilk/egui", rev = "29668b512888d3a8fe53da9258e7e6fcb2442610" }
-egui_wgpu_backend = { version = "0.8" }#, git = "https://github.com/hasenbanck/egui_wgpu_backend", rev = "b651ee9b669fdce74f3e26356d61d5df78d80edf" }
-egui_winit_platform = { version = "0.7", features = ["webbrowser"], path = "../egui_winit_platform" }
+egui = { version = "0.12" }
+
+# Converting structs to uniforms with alignment
+[dependencies.crevice]
+version = "0.6" # Blocker in upstream with mint types
+git = "https://github.com/LPGhatguy/crevice"
+rev = "9a8ca34957fbb33bf8e3b7f7c8ca01e5585661cb"
+
+# Render pass for egui with wgpu
+[dependencies.egui_wgpu_backend]
+version = "0.8"
+#git = "https://github.com/hasenbanck/egui_wgpu_backend"
+#rev = "b651ee9b669fdce74f3e26356d61d5df78d80edf"
+
+# Egui platform impl with winit
+[dependencies.egui_winit_platform]
+version = "0.7" # Blocker in upstream with clickable links and winit version
+features = ["webbrowser"]
+git = "https://github.com/hasenbanck/egui_winit_platform"
+rev = "9fd92782d8de22d7882168d7b5ae7a2eb02448d9"
