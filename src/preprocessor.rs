@@ -2,7 +2,6 @@
 
 use core::panic;
 use std::borrow::Borrow;
-use std::ops::Deref;
 
 use anyhow::{anyhow, Result};
 use glsl_lang::ast::{
@@ -184,6 +183,13 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
 pub fn convert_block(block: &mut Block) {
     block.qualifier.qualifiers[0] = TypeQualifierSpec::Layout(LayoutQualifier {
         ids: vec![
+            LayoutQualifierSpec::Identifier(
+                Identifier {
+                    content: IdentifierData(SmolStr::new("std140")),
+                    span: None,
+                },
+                None,
+            ),
             LayoutQualifierSpec::Identifier(
                 Identifier {
                     content: IdentifierData(SmolStr::new("set")),

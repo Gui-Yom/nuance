@@ -20,7 +20,7 @@ fn main() -> Result<()> {
         LevelFilter::Debug,
         ConfigBuilder::new()
             .set_target_level(LevelFilter::Error)
-            .add_filter_ignore_str("naga::front::spv")
+            //.add_filter_ignore_str("naga::front::spv")
             .add_filter_ignore_str("naga::valid::interface")
             .add_filter_ignore_str("wgpu_core::instance")
             .add_filter_ignore_str("wgpu_core::device")
@@ -40,7 +40,7 @@ fn main() -> Result<()> {
     // Create the window
     let builder = WindowBuilder::new()
         .with_title("Nuance")
-        .with_inner_size(LogicalSize::new(800, 600))
+        .with_inner_size(LogicalSize::new(1280, 720))
         .with_resizable(false)
         .with_visible(true);
     let window = builder.build(&event_loop)?;

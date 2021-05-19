@@ -44,6 +44,8 @@ log = { version = "0.4", features = ["std"] }
 simplelog = "0.10"
 # GUI
 egui = { version = "0.12" }
+# Image encoding
+image = { version = "0.23", default-features = false, features = ["png", "bmp", "jpeg", "gif"] }
 
 # Converting structs to uniforms with alignment
 [dependencies.crevice]

@@ -3,16 +3,17 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use egui::special_emojis::GITHUB;
-use egui::{ClippedMesh, Color32, CtxRef, DragValue, Frame, Texture, TextureId, Ui};
+use egui::{ClippedMesh, Color32, CtxRef, DragValue, Frame, Id, Texture, TextureId, Ui};
+use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::Platform;
+use image::ImageFormat;
+use log::debug;
 use rfd::FileDialog;
 use winit::event::Event;
 use winit::event_loop::EventLoopProxy;
-use winit::window::Window;
 
-use crate::shader::{Shader, Slider};
-use crate::types::Globals;
-use crate::{Command, Settings};
+use crate::shader::Slider;
+use crate::{Command, Nuance};
 
 pub struct Gui {
     /// Egui subsystem
@@ -38,133 +39,174 @@ impl Gui {
     }
 
     pub fn render(
-        &mut self,
-        window: &Window,
-        shader: Option<&mut Shader>,
-        watching: &mut bool,
-        settings: &mut Settings,
-        globals: &Globals,
         proxy: &EventLoopProxy<Command>,
+        window: &ScreenDescriptor,
+        app: &mut Nuance,
     ) -> Vec<ClippedMesh> {
-        let window_size = window.inner_size();
-        let scale_factor = window.scale_factor() as f32;
-        self.egui_platform.begin_frame();
+        app.gui.egui_platform.begin_frame();
 
-        let mut framerate = (1.0 / settings.target_framerate.as_secs_f32()).round() as u32;
+        let mut framerate = (1.0 / app.settings.target_framerate.as_secs_f32()).round() as u32;
 
-        egui::SidePanel::left("params", self.ui_width as f32).show(
-            &self.egui_platform.context(),
-            |ui| {
-                ui.label(format!(
-                    "resolution : {:.0}x{:.0} px",
-                    globals.resolution.x, globals.resolution.y
-                ));
-                ui.label(format!(
-                    "mouse : ({:.0}, {:.0}) px",
-                    globals.mouse.x, globals.mouse.y
-                ));
-                ui.label(format!("mouse wheel : {:.1}", globals.mouse_wheel));
-                ui.label(format!("time : {:.3} s", globals.time));
-                ui.label(format!("frame : {}", globals.frame));
+        egui::SidePanel::left("params", app.gui.ui_width as f32).show(&app.gui.context(), |ui| {
+            ui.label(format!(
+                "resolution : {:.0}x{:.0} px",
+                app.globals.resolution.x, app.globals.resolution.y
+            ));
+            ui.label(format!(
+                "mouse : ({:.0}, {:.0}) px",
+                app.globals.mouse.x, app.globals.mouse.y
+            ));
+            ui.label(format!("mouse wheel : {:.1}", app.globals.mouse_wheel));
+            ui.label(format!("time : {:.3} s", app.globals.time));
+            ui.label(format!("frame : {}", app.globals.frame));
 
-                if ui.small_button("Reset").clicked() {
-                    proxy.send_event(Command::Restart).unwrap();
+            if ui.small_button("Reset").clicked() {
+                proxy.send_event(Command::Restart).unwrap();
+            }
+
+            ui.separator();
+
+            ui.label("Settings");
+
+            ui.add(
+                DragValue::new(&mut framerate)
+                    .prefix("framerate : ")
+                    .clamp_range(4.0..=120.0)
+                    .max_decimals(0)
+                    .speed(0.1),
+            );
+            ui.add(
+                DragValue::new(&mut app.settings.mouse_wheel_step)
+                    .prefix("mouse wheel inc : ")
+                    .clamp_range(-100.0..=100.0)
+                    .max_decimals(3)
+                    .speed(0.01),
+            );
+
+            ui.separator();
+
+            ui.horizontal(|ui| {
+                if ui.button("Export").clicked() {
+                    app.export_data.export_prompt = true;
                 }
-
-                ui.separator();
-
-                ui.label("Settings");
-
-                ui.add(
-                    DragValue::new(&mut framerate)
-                        .prefix("framerate : ")
-                        .clamp_range(4.0..=120.0)
-                        .max_decimals(0)
-                        .speed(0.1),
-                );
-                ui.add(
-                    DragValue::new(&mut settings.mouse_wheel_step)
-                        .prefix("mouse wheel inc : ")
-                        .clamp_range(-100.0..=100.0)
-                        .max_decimals(3)
-                        .speed(0.01),
-                );
-
-                ui.separator();
-
-                ui.horizontal(|ui| {
-                    if ui.button("Load").clicked() {
-                        if let Some(path) = FileDialog::new()
-                            .add_filter("Shaders", &["glsl", "frag", "spv"])
-                            .pick_file()
-                        {
-                            proxy.send_event(Command::Load(path)).unwrap();
-                        }
+                if ui.button("Load").clicked() {
+                    if let Some(path) = FileDialog::new()
+                        .add_filter("Shaders", &["glsl", "frag", "spv"])
+                        .pick_file()
+                    {
+                        proxy.send_event(Command::Load(path)).unwrap();
                     }
-                    if shader.is_some() && ui.checkbox(watching, "watch").changed() {
-                        if *watching {
-                            proxy.send_event(Command::Watch).unwrap();
-                        } else {
-                            proxy.send_event(Command::Unwatch).unwrap();
-                        }
+                }
+                if app.shader.is_some() && ui.checkbox(&mut app.watching, "watch").changed() {
+                    if app.watching {
+                        proxy.send_event(Command::Watch).unwrap();
+                    } else {
+                        proxy.send_event(Command::Unwatch).unwrap();
                     }
-                });
-
-                // Shader name
-                if let Some(file) = shader.as_ref() {
-                    ui.colored_label(Color32::GREEN, file.main.to_str().unwrap());
-                } else {
-                    ui.colored_label(Color32::RED, "No shader");
                 }
+            });
 
-                if let Some(Some(sliders)) =
-                    shader.map(|it| it.metadata.as_mut().map(|it| &mut it.sliders))
-                {
-                    ui.separator();
-                    ui.label("Params");
-                    egui::Grid::new("params grid")
-                        .striped(true)
-                        //.max_col_width(self.ui_width as f32 - 20.0)
-                        .show(ui, |ui| {
-                            for slider in sliders {
-                                slider.draw(ui);
-                                ui.end_row();
-                            }
-                        });
-                }
+            // Shader name
+            if let Some(file) = app.shader.as_ref() {
+                ui.colored_label(Color32::GREEN, file.main.to_str().unwrap());
+            } else {
+                ui.colored_label(Color32::RED, "No shader");
+            }
 
-                ui.add_space(ui.available_size().y - 2.0 * ui.spacing().item_spacing.y - 30.0);
-                ui.vertical_centered(|ui| {
-                    ui.hyperlink_to(
-                        format!("{} Manual", GITHUB),
-                        "https://github.com/Gui-Yom/nuance/blob/master/MANUAL.md",
-                    );
-                    ui.hyperlink_to(
-                        format!("{} source code", GITHUB),
-                        "https://github.com/Gui-Yom/nuance",
-                    );
-                });
-            },
-        );
+            if let Some(Some(sliders)) = app
+                .shader
+                .as_mut()
+                .map(|it| it.metadata.as_mut().map(|it| &mut it.sliders))
+            {
+                ui.separator();
+                ui.label("Params");
+                egui::Grid::new("params grid")
+                    .striped(true)
+                    //.max_col_width(self.ui_width as f32 - 20.0)
+                    .show(ui, |ui| {
+                        for slider in sliders {
+                            slider.draw(ui);
+                            ui.end_row();
+                        }
+                    });
+            }
+
+            ui.add_space(ui.available_size().y - 2.0 * ui.spacing().item_spacing.y - 30.0);
+            ui.vertical_centered(|ui| {
+                ui.hyperlink_to(
+                    format!("{} Manual", GITHUB),
+                    "https://github.com/Gui-Yom/nuance/blob/master/MANUAL.md",
+                );
+                ui.hyperlink_to(
+                    format!("{} source code", GITHUB),
+                    "https://github.com/Gui-Yom/nuance",
+                );
+            });
+        });
         egui::CentralPanel::default()
             .frame(Frame::none())
-            .show(&self.context(), |ui| {
+            .show(&app.gui.context(), |ui| {
                 ui.image(
                     TextureId::User(0),
                     egui::Vec2::new(
-                        (window_size.width as f32 - self.ui_width as f32 * scale_factor)
-                            / scale_factor,
-                        window_size.height as f32 / scale_factor,
+                        window.physical_width as f32 / window.scale_factor
+                            - app.gui.ui_width as f32,
+                        window.physical_height as f32 / window.scale_factor,
                     ),
                 );
             });
 
+        let path_ref = &mut app.export_data.path;
+        let format_ref = &mut app.export_data.format;
+        let size_x_ref = &mut app.export_data.size.x;
+        let size_y_ref = &mut app.export_data.size.y;
+        egui::Window::new("Export image")
+            .id(Id::new("export image window"))
+            .open(&mut app.export_data.export_prompt)
+            .collapsible(false)
+            .resizable(false)
+            .scroll(false)
+            .show(&app.gui.context(), |ui| {
+                // File path
+                ui.horizontal(|ui| {
+                    ui.label(format!("{}", path_ref.to_str().unwrap()));
+                    if ui.button("...").clicked() {
+                        if let Some(path) = FileDialog::new()
+                            //.add_filter("Image", &[&format_ref.to_string()])
+                            .save_file()
+                        {
+                            path_ref.push(&path);
+                        }
+                    }
+                });
+
+                if let Ok(format) = ImageFormat::from_path(path_ref) {
+                    if format.can_write() {
+                        *format_ref = format;
+                    } else {
+                        ui.colored_label(Color32::RED, "× Unsupported image format");
+                    }
+                } else {
+                    ui.colored_label(Color32::RED, "× Unknown image format");
+                }
+                ui.horizontal(|ui| {
+                    ui.label("Size :");
+                    ui.add(DragValue::new(size_x_ref).suffix("px"));
+                    ui.label("x");
+                    ui.add(DragValue::new(size_y_ref).suffix("px"));
+                });
+
+                if ui.button("export").clicked() {
+                    proxy.send_event(Command::Export).unwrap();
+                }
+            });
+
         // End the UI frame. We could now handle the output and draw the UI with the backend.
-        let (_, paint_commands) = self.egui_platform.end_frame();
+        let (_, paint_commands) = app.gui.egui_platform.end_frame();
 
-        settings.target_framerate = Duration::from_secs_f32(1.0 / framerate as f32);
+        app.settings.target_framerate = Duration::from_secs_f32(1.0 / framerate as f32);
 
-        self.context().tessellate(paint_commands)
+        app.gui.context().tessellate(paint_commands)
     }
 
     pub fn context(&self) -> CtxRef {
@@ -203,7 +245,7 @@ impl Slider {
             }
             Slider::Color { name, value } => {
                 ui.label(name.as_str());
-                // I feel bad for using unsafe BUT mint implements AsRef but not AsMut,
+                // I feel bad for doing this BUT mint only implements AsRef but not AsMut,
                 // so this right here is the same implementation as AsRef but mutable
                 let ref_mut = unsafe { mem::transmute(value) };
                 ui.color_edit_button_rgb(ref_mut);

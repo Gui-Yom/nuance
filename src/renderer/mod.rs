@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use egui::ClippedMesh;
 use egui_wgpu_backend::ScreenDescriptor;
-use log::debug;
+use log::{debug, info};
 use wgpu::{
     include_spirv, Adapter, BackendBit, Color, CommandEncoderDescriptor, Device, Extent3d,
     Features, Instance, Limits, PowerPreference, PresentMode, Queue, RequestAdapterOptions,
@@ -14,11 +14,6 @@ use winit::window::Window;
 use crate::renderer::shader::ShaderRenderPass;
 
 mod shader;
-
-pub struct GuiData<'a> {
-    pub texture: &'a egui::Texture,
-    pub paint_jobs: &'a [ClippedMesh],
-}
 
 pub struct Renderer {
     #[allow(dead_code)]
@@ -72,7 +67,7 @@ impl Renderer {
             .await
             .context("Can't find a suitable adapter")?;
 
-        debug!(
+        info!(
             "picked : {}: {:?} ({:?})",
             adapter.get_info().name,
             adapter.get_info().device_type,
@@ -177,8 +172,8 @@ impl Renderer {
 
     pub fn render(
         &mut self,
-        screen_desc: ScreenDescriptor,
-        gui: GuiData,
+        screen_desc: &ScreenDescriptor,
+        gui: (&egui::Texture, &[ClippedMesh]),
         params_buffer: &[u8],
         push_constants: &[u8],
     ) -> Result<()> {
@@ -200,17 +195,17 @@ impl Renderer {
 
         // Upload all resources for the GPU.
         self.egui_rpass
-            .update_texture(&self.device, &self.queue, gui.texture);
+            .update_texture(&self.device, &self.queue, gui.0);
         self.egui_rpass
             .update_user_textures(&self.device, &self.queue);
         self.egui_rpass
-            .update_buffers(&self.device, &self.queue, gui.paint_jobs, &screen_desc);
+            .update_buffers(&self.device, &self.queue, gui.1, &screen_desc);
 
         // Record all render passes.
         self.egui_rpass.execute(
             &mut encoder,
             &frame.view,
-            gui.paint_jobs,
+            gui.1,
             &screen_desc,
             Some(Color::BLACK),
         );

@@ -1,5 +1,6 @@
 use std::mem;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
@@ -9,6 +10,7 @@ use crevice::std430::Std430;
 use egui::{FontDefinitions, Style};
 use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::{Platform, PlatformDescriptor};
+use image::ImageFormat;
 use log::{debug, error, info};
 use mint::Vector2;
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
@@ -21,14 +23,12 @@ use crate::gui::Gui;
 use crate::renderer::Renderer;
 use crate::shader::{Shader, Slider};
 use crate::shader_loader::ShaderLoader;
-use crate::types::Globals;
 
 mod gui;
 pub mod preprocessor;
 pub mod renderer;
 pub mod shader;
 pub mod shader_loader;
-pub mod types;
 
 #[derive(Debug)]
 pub enum Command {
@@ -37,12 +37,56 @@ pub enum Command {
     Watch,
     Unwatch,
     Restart,
+    Export,
     Exit,
+}
+
+/// The globals we pass to the fragment shader
+#[derive(AsStd430)]
+pub struct Globals {
+    /// Window resolution
+    pub resolution: Vector2<u32>,
+    /// Mouse pos
+    pub mouse: Vector2<u32>,
+    /// Mouse wheel
+    pub mouse_wheel: f32,
+    /// Draw area width/height ratio
+    pub ratio: f32,
+    /// Current running time in sec
+    pub time: f32,
+    /// Number of frame
+    pub frame: u32,
+}
+
+impl Globals {
+    pub fn reset(&mut self) {
+        self.frame = 0;
+        self.time = 0.0;
+        self.mouse_wheel = 0.0;
+    }
 }
 
 pub struct Settings {
     pub target_framerate: Duration,
     pub mouse_wheel_step: f32,
+}
+
+pub struct ExportData {
+    pub export_prompt: bool,
+    pub size: Vector2<u32>,
+    pub format: ImageFormat,
+    pub path: PathBuf,
+}
+
+impl Default for ExportData {
+    fn default() -> Self {
+        Self {
+            export_prompt: false,
+            size: Vector2::from([2048, 2048]),
+            format: ImageFormat::Png,
+            path: PathBuf::from_str("./render.png").unwrap(),
+        }
+    }
 }
 
 pub struct Nuance {
@@ -67,6 +111,8 @@ pub struct Nuance {
     pub watching: bool,
     /// Parameters passed to shaders
     pub globals: Globals,
+
+    pub export_data: ExportData,
 }
 
 impl Nuance {
@@ -125,6 +171,7 @@ impl Nuance {
                 time: 0.0,
                 frame: 0,
             },
+            export_data: Default::default(),
         })
     }
     /// Runs the window, will block the thread until completion
@@ -179,6 +226,7 @@ impl Nuance {
                         self.globals.reset();
                         self.sim_time = Instant::now();
                     }
+                    Command::Export => {}
                     Command::Exit => {
                         *control_flow = ControlFlow::Exit;
                     }
@@ -229,26 +277,17 @@ impl Nuance {
                 }
                 Event::RedrawRequested(_) => {
                     self.gui.update_time(app_time.elapsed().as_secs_f64());
-                    let paint_jobs = self.gui.render(
-                        &self.window,
-                        self.shader.as_mut(),
-                        &mut self.watching,
-                        &mut self.settings,
-                        &self.globals,
-                        &proxy,
-                    );
                     let window_size = self.window.inner_size();
+                    let screen_desc = ScreenDescriptor {
+                        physical_width: window_size.width,
+                        physical_height: window_size.height,
+                        scale_factor: self.window.scale_factor() as f32,
+                    };
+                    let paint_jobs = Gui::render(&proxy, &screen_desc, &mut self);
                     self.renderer
                         .render(
-                            ScreenDescriptor {
-                                physical_width: window_size.width,
-                                physical_height: window_size.height,
-                                scale_factor: self.window.scale_factor() as f32,
-                            },
-                            renderer::GuiData {
-                                texture: &self.gui.texture(),
-                                paint_jobs: &paint_jobs,
-                            },
+                            &screen_desc,
+                            (&self.gui.texture(), &paint_jobs),
                             &self
                                 .shader
                                 .as_ref()
@@ -268,31 +307,33 @@ impl Nuance {
     fn load<P: AsRef<Path>>(&mut self, path: P) {
         info!("Loading {}", path.as_ref().to_str().unwrap());
         let reload_start = Instant::now();
-        let result = self.shader_loader.load_shader(&path).ok();
-        if result.is_none() {
-            error!("Can't load {}", path.as_ref().to_str().unwrap());
-            return;
+
+        match self.shader_loader.load_shader(&path) {
+            Ok((shader, source)) => {
+                let buffer_size = if let Some(metadata) = shader.metadata.as_ref() {
+                    metadata.buffer_size()
+                } else {
+                    0
+                };
+
+                self.renderer
+                    .set_shader(source, Globals::std430_size_static() as u32, buffer_size);
+
+                self.shader = Some(shader);
+                // Reset the running globals
+                self.globals.reset();
+                self.sim_time = Instant::now();
+
+                info!(
+                    "Loaded and ready ! (took {} ms)",
+                    reload_start.elapsed().as_millis()
+                );
+            }
+            Err(e) => {
+                error!("{}", e);
+                error!("Can't load {}", path.as_ref().to_str().unwrap());
+            }
         }
-        let (shader, source) = result.unwrap();
-
-        let buffer_size = if let Some(metadata) = shader.metadata.as_ref() {
-            metadata.buffer_size()
-        } else {
-            0
-        };
-
-        self.renderer
-            .set_shader(source, Globals::std430_size_static() as u32, buffer_size);
-
-        self.shader = Some(shader);
-        // Reset the running globals
-        self.globals.reset();
-        self.sim_time = Instant::now();
-
-        info!(
-            "Loaded and ready ! (took {} ms)",
-            reload_start.elapsed().as_millis()
-        );
     }
 }
 
