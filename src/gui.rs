@@ -169,7 +169,7 @@ impl Gui {
             .show(&app.gui.context(), |ui| {
                 // File path
                 ui.horizontal(|ui| {
-                    ui.label(format!("{}", path_ref.to_str().unwrap()));
+                    ui.label(path_ref.to_str().unwrap());
                     if ui.button("...").clicked() {
                         if let Some(path) = FileDialog::new()
                             //.add_filter("Image", &[&format_ref.to_string()])

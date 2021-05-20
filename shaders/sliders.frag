@@ -13,10 +13,16 @@
 //}
 
 layout(params) uniform Params {
-    layout(color, init = vec3(1.0, 0.0, 0)) vec3 rgb;
+    layout(color, init = vec3(0.0, 0.0, 1)) vec3 rgb;
+    layout(min = 0, max = 1) float a;
     vec3 pos;
 };
 
 void main() {
-    fragColor = vec4(rgb, 1.0);
+    float r = length(gl_FragCoord.xy - pos.xy);
+    if (r <= 60 * (iMouseWheel + 1.0)) {
+        fragColor = vec4(1.0, a, 0.0, 1.0);
+    } else {
+        fragColor = vec4(rgb, 1.0);
+    }
 }

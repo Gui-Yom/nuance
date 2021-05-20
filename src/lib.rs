@@ -1,4 +1,3 @@
-use std::mem;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::mpsc::Receiver;
@@ -21,7 +20,7 @@ use winit::window::Window;
 
 use crate::gui::Gui;
 use crate::renderer::Renderer;
-use crate::shader::{Shader, Slider};
+use crate::shader::Shader;
 use crate::shader_loader::ShaderLoader;
 
 mod gui;
@@ -291,7 +290,7 @@ impl Nuance {
                             &self
                                 .shader
                                 .as_ref()
-                                .map(|it| it.metadata.as_ref().map(|it| to_glsl(&it.sliders)))
+                                .map(|it| it.metadata.as_ref().map(|it| it.params_buffer()))
                                 .unwrap_or_default()
                                 .unwrap_or_default(),
                             self.globals.as_std430().as_bytes(),
@@ -311,7 +310,7 @@ impl Nuance {
         match self.shader_loader.load_shader(&path) {
             Ok((shader, source)) => {
                 let buffer_size = if let Some(metadata) = shader.metadata.as_ref() {
-                    metadata.buffer_size()
+                    metadata.params_buffer_size()
                 } else {
                     0
                 };
@@ -334,45 +333,5 @@ impl Nuance {
                 error!("Can't load {}", path.as_ref().to_str().unwrap());
             }
         }
-    }
-}
-
-fn to_glsl<'a>(iter: impl IntoIterator<Item = &'a Slider>) -> Vec<u8> {
-    // We put our values together
-    let mut floats = Vec::new();
-    for param in iter {
-        match param {
-            Slider::Float { value, .. } => {
-                floats.push(*value);
-            }
-            Slider::Vec3 { value, .. } => {
-                floats.push(value.x);
-                floats.push(value.y);
-                floats.push(value.z);
-                floats.push(0.0);
-            }
-            Slider::Color { value, .. } => {
-                floats.push(value.x);
-                floats.push(value.y);
-                floats.push(value.z);
-                floats.push(0.0);
-            }
-            _ => {}
-        }
-    }
-    // We reinterpret our floats to bytes
-    // FIXME CRITICAL, probably won't work for more complex types
-    unsafe {
-        let ratio = mem::size_of::<f32>() / mem::size_of::<u8>();
-
-        let length = floats.len() * ratio;
-        let capacity = floats.capacity() * ratio;
-        let ptr = floats.as_mut_ptr() as *mut u8;
-
-        // Don't run the destructor for vec32
-        mem::forget(floats);
-
-        // Construct new Vec
-        Vec::from_raw_parts(ptr, length, capacity)
     }
 }

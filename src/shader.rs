@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use crevice::std140;
 use mint::{Vector2, Vector3};
 
 pub enum Slider {
@@ -39,23 +40,30 @@ impl Default for ShaderMetadata {
 }
 
 impl ShaderMetadata {
-    pub fn buffer_size(&self) -> u64 {
-        let mut size = 0;
-        for slider in self.sliders.iter() {
-            match slider {
-                Slider::Float { .. } => {
-                    size += 4;
+    pub fn params_buffer_size(&self) -> u64 {
+        self.params_buffer().len() as u64
+    }
+
+    pub fn params_buffer(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        let mut writer = std140::Writer::new(&mut bytes);
+
+        for param in self.sliders.iter() {
+            match param {
+                Slider::Float { value, .. } => {
+                    writer.write(value).unwrap();
                 }
-                Slider::Vec3 { .. } => {
-                    size += 16;
+                Slider::Vec3 { value, .. } => {
+                    writer.write(value).unwrap();
                 }
-                Slider::Color { .. } => {
-                    size += 16;
+                Slider::Color { value, .. } => {
+                    writer.write(value).unwrap();
                 }
                 _ => {}
             }
         }
-        size
+
+        bytes
     }
 }
 
