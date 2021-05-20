@@ -113,13 +113,15 @@ impl Gui {
                 ui.colored_label(Color32::RED, "No shader");
             }
 
-            if let Some(Some(sliders)) = app
-                .shader
-                .as_mut()
-                .map(|it| it.metadata.as_mut().map(|it| &mut it.sliders))
-            {
+            if let Some(Some(metadata)) = app.shader.as_mut().map(|it| it.metadata.as_mut()) {
                 ui.separator();
-                ui.label("Params");
+                ui.horizontal(|ui| {
+                    ui.label("Params");
+                    if ui.button("Reset").clicked() {
+                        metadata.reset_params();
+                    }
+                });
+                let sliders = &mut metadata.sliders;
                 egui::Grid::new("params grid")
                     .striped(true)
                     //.max_col_width(self.ui_width as f32 - 20.0)
@@ -226,6 +228,7 @@ impl Slider {
                 min,
                 max,
                 value,
+                ..
             } => {
                 ui.label(name.as_str());
                 ui.add(
@@ -234,7 +237,7 @@ impl Slider {
                         .max_decimals(3),
                 );
             }
-            Slider::Vec3 { name, value } => {
+            Slider::Vec3 { name, value, .. } => {
                 ui.label(name.as_str());
                 ui.spacing_mut().item_spacing.x = 2.0;
                 ui.columns(3, |columns| {
@@ -243,7 +246,7 @@ impl Slider {
                     columns[2].add(DragValue::new(&mut value.z).max_decimals(3));
                 });
             }
-            Slider::Color { name, value } => {
+            Slider::Color { name, value, .. } => {
                 ui.label(name.as_str());
                 // I feel bad for doing this BUT mint only implements AsRef but not AsMut,
                 // so this right here is the same implementation as AsRef but mutable

@@ -74,6 +74,7 @@ pub struct ExportData {
     pub export_prompt: bool,
     pub size: Vector2<u32>,
     pub format: ImageFormat,
+    //pub valid_format: bool,
     pub path: PathBuf,
 }
 

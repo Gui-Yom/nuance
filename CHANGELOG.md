@@ -15,6 +15,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Grid to display sliders
 - Manual documenting shader syntax
 - Links to repo and manual
+- Reset button to reset params to their default values
 
 ### Changed (internal)
 

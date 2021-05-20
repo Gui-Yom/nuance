@@ -9,34 +9,46 @@ pub enum Slider {
         min: f32,
         max: f32,
         value: f32,
+        default: f32,
     },
     Vec2 {
         name: String,
         value: Vector2<f32>,
+        default: Vector2<f32>,
     },
     Vec3 {
         name: String,
         value: Vector3<f32>,
+        default: Vector3<f32>,
     },
     Color {
         name: String,
         value: Vector3<f32>,
+        default: Vector3<f32>,
     },
 }
 
+macro_rules! reset_impl {
+    ($enum:ident, $($item: ident,)*) => (
+        impl $enum {
+            pub fn reset(&mut self) {
+                match self {
+                    $($enum::$item { value, default, .. } => {
+                        *value = *default;
+                    })*
+                }
+            }
+        }
+    )
+}
+
+reset_impl!(Slider, Float, Vec2, Vec3, Color,);
+
 /// Traverses the ast and extract useful data while converting the ast to valid glsl source
+#[derive(Default)]
 pub struct ShaderMetadata {
     pub sliders: Vec<Slider>,
     pub still_image: bool,
-}
-
-impl Default for ShaderMetadata {
-    fn default() -> Self {
-        Self {
-            sliders: Vec::new(),
-            still_image: false,
-        }
-    }
 }
 
 impl ShaderMetadata {
@@ -64,6 +76,12 @@ impl ShaderMetadata {
         }
 
         bytes
+    }
+
+    pub fn reset_params(&mut self) {
+        for slider in self.sliders.iter_mut() {
+            slider.reset();
+        }
     }
 }
 

@@ -124,11 +124,12 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
                 min,
                 max,
                 value: init,
+                default: init,
             });
         }
         // To Slider::Color if color layout qualifier is set
         TypeSpecifierNonArray::Vec3 => {
-            let mut value: Vector3<f32> = Vector3::from([0.0, 0.0, 0.0]);
+            let mut init: Vector3<f32> = Vector3::from([0.0, 0.0, 0.0]);
             let mut color = false;
 
             if let Some(TypeQualifier { qualifiers }) = field.qualifier.as_ref() {
@@ -148,7 +149,7 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
                                     )) = param.as_deref()
                                     {
                                         if *ty == TypeSpecifierNonArray::Vec3 && params.len() == 3 {
-                                            value = Vector3::from([
+                                            init = Vector3::from([
                                                 params[0].coerce_const(),
                                                 params[1].coerce_const(),
                                                 params[2].coerce_const(),
@@ -169,9 +170,17 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
                 }
             }
             return Ok(if color {
-                Slider::Color { name, value }
+                Slider::Color {
+                    name,
+                    value: init,
+                    default: init,
+                }
             } else {
-                Slider::Vec3 { name, value }
+                Slider::Vec3 {
+                    name,
+                    value: init,
+                    default: init,
+                }
             });
         }
         _ => {}
