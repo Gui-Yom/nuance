@@ -89,7 +89,8 @@ Each parameter UI appearance is derived from its type and qualifiers.
 type |qualifiers                |ui
 -----|--------------------------|------------
 float|min = ?, max = ?, init = ?|drag control
-vec3 |color                     |color picker
+vec3 |color, init = ?           |color picker
+vec3 |init = ?                  |triple drag control
 
 ### Special values
 

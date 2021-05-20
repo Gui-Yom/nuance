@@ -75,14 +75,17 @@ entire application build time.
 
 Ideas and tasks I should work on in no particular order.
 
+- Button to reset params to their default values
 - Merge params uniform block with push_constant block
 - Preprocessor error handling & reporting
 - Complete error handling (currently crashes if something goes wrong)
-- GPU hot switch (for when you see that you need some extra gpu juice)
+- GPU hot switch (for when you need some extra gpu juice on the fly)
 - Bind textures as input
 - Bind buffers as output
 - Provide access to last rendered texture for stateful simulations
-- Sound processing
+- Sound processing (in and out)
 - Save to image, gif or video
 - Load shaders directly from [shadertoy.com](https://shadertoy.com) (need to convert globals)
 - Shader editor (code editor, GLSL highlighting)
+- Custom parser for glsl  
+- Support rust-gpu shaders
