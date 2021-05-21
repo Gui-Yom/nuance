@@ -11,6 +11,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Color picker for `layout(color) vec3`
 - Triple drag value for `vec3`
+- Double drag value for `vec2`
 - Initializers for vector types
 - Grid to display sliders
 - Manual documenting shader syntax

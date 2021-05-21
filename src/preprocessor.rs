@@ -17,7 +17,7 @@ use glsl_lang::{
     visitor::{HostMut, Visit, VisitorMut},
 };
 use log::{debug, error};
-use mint::Vector3;
+use mint::{Vector2, Vector3};
 
 use crate::shader::{ShaderMetadata, Slider};
 
@@ -123,6 +123,48 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
                 name,
                 min,
                 max,
+                value: init,
+                default: init,
+            });
+        }
+        TypeSpecifierNonArray::Vec2 => {
+            let mut init: Vector2<f32> = Vector2::from([0.0, 0.0]);
+
+            if let Some(TypeQualifier { qualifiers }) = field.qualifier.as_ref() {
+                if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) =
+                    qualifiers.first().unwrap()
+                {
+                    for qualifier in ids.iter() {
+                        if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
+                            match id.content.0.as_str() {
+                                "init" => {
+                                    if let Some(Expr::FunCall(
+                                        FunIdentifier::TypeSpecifier(TypeSpecifier { ty, .. }),
+                                        params,
+                                    )) = param.as_deref()
+                                    {
+                                        if *ty == TypeSpecifierNonArray::Vec2 && params.len() == 2 {
+                                            init = Vector2::from([
+                                                params[0].coerce_const(),
+                                                params[1].coerce_const(),
+                                            ]);
+                                            continue;
+                                        }
+                                        error!("Invalid initializer !");
+                                    }
+                                }
+                                other => {
+                                    error!("Unsupported setting : {}", other)
+                                }
+                            }
+                        } else {
+                            error!("Invalid qualifier shared");
+                        }
+                    }
+                }
+            }
+            return Ok(Slider::Vec2 {
+                name,
                 value: init,
                 default: init,
             });

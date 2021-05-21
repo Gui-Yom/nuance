@@ -234,16 +234,25 @@ impl Slider {
                 ui.add(
                     DragValue::new(value)
                         .clamp_range(*min..=*max)
-                        .max_decimals(3),
+                        .speed((*max - *min) / ui.available_width())
+                        .fixed_decimals(3),
                 );
+            }
+            Slider::Vec2 { name, value, .. } => {
+                ui.label(name.as_str());
+                ui.spacing_mut().item_spacing.x = 2.0;
+                ui.columns(2, |columns| {
+                    columns[0].add(DragValue::new(&mut value.x).speed(0.005).fixed_decimals(3));
+                    columns[1].add(DragValue::new(&mut value.y).speed(0.005).fixed_decimals(3));
+                });
             }
             Slider::Vec3 { name, value, .. } => {
                 ui.label(name.as_str());
                 ui.spacing_mut().item_spacing.x = 2.0;
                 ui.columns(3, |columns| {
-                    columns[0].add(DragValue::new(&mut value.x).max_decimals(3));
-                    columns[1].add(DragValue::new(&mut value.y).max_decimals(3));
-                    columns[2].add(DragValue::new(&mut value.z).max_decimals(3));
+                    columns[0].add(DragValue::new(&mut value.x).speed(0.005).fixed_decimals(3));
+                    columns[1].add(DragValue::new(&mut value.y).speed(0.005).fixed_decimals(3));
+                    columns[2].add(DragValue::new(&mut value.z).speed(0.005).fixed_decimals(3));
                 });
             }
             Slider::Color { name, value, .. } => {
@@ -253,7 +262,6 @@ impl Slider {
                 let ref_mut = unsafe { mem::transmute(value) };
                 ui.color_edit_button_rgb(ref_mut);
             }
-            _ => {}
         }
     }
 }
