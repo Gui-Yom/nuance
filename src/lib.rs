@@ -120,7 +120,7 @@ impl Nuance {
         let window_size = window.inner_size();
         let scale_factor = window.scale_factor();
 
-        let ui_width = 200.0;
+        let ui_width = 280.0;
         let mut canvas_size = window_size;
         canvas_size.width -= (ui_width * scale_factor) as u32;
 
@@ -153,7 +153,7 @@ impl Nuance {
                 ui_width as u32,
             ),
             settings: Settings {
-                target_framerate: Duration::from_secs_f32(1.0 / 30.0),
+                target_framerate: Duration::from_secs_f32(1.0 / 60.0),
                 mouse_wheel_step: 0.1,
             },
             shader: None,

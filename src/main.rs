@@ -20,7 +20,7 @@ fn main() -> Result<()> {
         LevelFilter::Debug,
         ConfigBuilder::new()
             .set_target_level(LevelFilter::Error)
-            //.add_filter_ignore_str("naga::front::spv")
+            .add_filter_ignore_str("naga::front::spv")
             .add_filter_ignore_str("naga::valid::interface")
             .add_filter_ignore_str("wgpu_core::instance")
             .add_filter_ignore_str("wgpu_core::device")

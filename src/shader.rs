@@ -29,7 +29,7 @@ pub enum Slider {
 }
 
 macro_rules! reset_impl {
-    ($enum:ident, $($item: ident,)*) => (
+    ($enum:ident, $($item: ident )*) => (
         impl $enum {
             pub fn reset(&mut self) {
                 match self {
@@ -42,7 +42,7 @@ macro_rules! reset_impl {
     )
 }
 
-reset_impl!(Slider, Float, Vec2, Vec3, Color,);
+reset_impl!(Slider, Float Vec2 Vec3 Color);
 
 macro_rules! write_impl {
     ($align:ident, $enum:ident, $($item:ident )*) => {

@@ -48,6 +48,8 @@ impl Gui {
         let mut framerate = (1.0 / app.settings.target_framerate.as_secs_f32()).round() as u32;
 
         egui::SidePanel::left("params", app.gui.ui_width as f32).show(&app.gui.context(), |ui| {
+            ui.set_width(app.gui.ui_width as f32);
+
             ui.label(format!(
                 "resolution : {:.0}x{:.0} px",
                 app.globals.resolution.x, app.globals.resolution.y
@@ -235,24 +237,24 @@ impl Slider {
                     DragValue::new(value)
                         .clamp_range(*min..=*max)
                         .speed((*max - *min) / ui.available_width())
-                        .fixed_decimals(3),
+                        .max_decimals(3),
                 );
             }
             Slider::Vec2 { name, value, .. } => {
                 ui.label(name.as_str());
                 ui.spacing_mut().item_spacing.x = 2.0;
                 ui.columns(2, |columns| {
-                    columns[0].add(DragValue::new(&mut value.x).speed(0.005).fixed_decimals(3));
-                    columns[1].add(DragValue::new(&mut value.y).speed(0.005).fixed_decimals(3));
+                    columns[0].add(DragValue::new(&mut value.x).speed(0.01).max_decimals(3));
+                    columns[1].add(DragValue::new(&mut value.y).speed(0.01).max_decimals(3));
                 });
             }
             Slider::Vec3 { name, value, .. } => {
                 ui.label(name.as_str());
                 ui.spacing_mut().item_spacing.x = 2.0;
                 ui.columns(3, |columns| {
-                    columns[0].add(DragValue::new(&mut value.x).speed(0.005).fixed_decimals(3));
-                    columns[1].add(DragValue::new(&mut value.y).speed(0.005).fixed_decimals(3));
-                    columns[2].add(DragValue::new(&mut value.z).speed(0.005).fixed_decimals(3));
+                    columns[0].add(DragValue::new(&mut value.x).speed(0.01).max_decimals(3));
+                    columns[1].add(DragValue::new(&mut value.y).speed(0.01).max_decimals(3));
+                    columns[2].add(DragValue::new(&mut value.z).speed(0.01).max_decimals(3));
                 });
             }
             Slider::Color { name, value, .. } => {

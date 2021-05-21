@@ -75,7 +75,6 @@ entire application build time.
 
 Ideas and tasks I should work on in no particular order.
 
-- Button to reset params to their default values
 - Merge params uniform block with push_constant block
 - Preprocessor error handling & reporting
 - Complete error handling (currently crashes if something goes wrong)

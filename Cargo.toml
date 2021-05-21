@@ -51,7 +51,7 @@ image = { version = "0.23", default-features = false, features = ["png", "bmp", 
 [dependencies.crevice]
 version = "0.6" # Blocker in upstream with mint types
 git = "https://github.com/LPGhatguy/crevice"
-rev = "9a8ca34957fbb33bf8e3b7f7c8ca01e5585661cb"
+rev = "c81234662e5118d115922e89d0f0f6fbc9ac560f"
 
 # Render pass for egui with wgpu
 [dependencies.egui_wgpu_backend]
