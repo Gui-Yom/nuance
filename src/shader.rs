@@ -44,6 +44,22 @@ macro_rules! reset_impl {
 
 reset_impl!(Slider, Float, Vec2, Vec3, Color,);
 
+macro_rules! write_impl {
+    ($align:ident, $enum:ident, $($item:ident )*) => {
+        impl $enum {
+            pub fn write<W: std::io::Write>(&self, writer: &mut crevice::$align::Writer<W>) {
+                match self {
+                    $($enum::$item { value, .. } => {
+                        writer.write(value).unwrap();
+                    })*
+                }
+            }
+        }
+    };
+}
+
+write_impl!(std140, Slider, Float Vec2 Vec3 Color);
+
 /// Traverses the ast and extract useful data while converting the ast to valid glsl source
 #[derive(Default)]
 pub struct ShaderMetadata {
@@ -60,19 +76,8 @@ impl ShaderMetadata {
         let mut bytes = Vec::new();
         let mut writer = std140::Writer::new(&mut bytes);
 
-        for param in self.sliders.iter() {
-            match param {
-                Slider::Float { value, .. } => {
-                    writer.write(value).unwrap();
-                }
-                Slider::Vec3 { value, .. } => {
-                    writer.write(value).unwrap();
-                }
-                Slider::Color { value, .. } => {
-                    writer.write(value).unwrap();
-                }
-                _ => {}
-            }
+        for slider in self.sliders.iter() {
+            slider.write(&mut writer);
         }
 
         bytes
