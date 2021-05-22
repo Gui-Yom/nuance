@@ -184,9 +184,6 @@ impl Nuance {
         let app_time = Instant::now();
 
         event_loop.run(move |event, _, control_flow| {
-            // Run this loop indefinitely by default
-            *control_flow = ControlFlow::Poll;
-
             if let Ok(DebouncedEvent::Write(_)) = self.watcher_rx.try_recv() {
                 proxy.send_event(Command::Reload).unwrap();
             }
