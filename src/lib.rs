@@ -14,7 +14,7 @@ use log::{debug, error, info};
 use mint::Vector2;
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
 use wgpu::PowerPreference;
-use winit::event::{Event, MouseScrollDelta, WindowEvent};
+use winit::event::{Event, MouseScrollDelta, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::Window;
 
@@ -254,6 +254,12 @@ impl Nuance {
                             info!("{:?}", pos);
                         }
                     },
+                    WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
+                        Some(VirtualKeyCode::F1) => {
+                            self.gui.profiling_window = true;
+                        }
+                        _ => {}
+                    },
                     WindowEvent::CloseRequested => {
                         *control_flow = ControlFlow::Exit;
                     }
@@ -273,14 +279,24 @@ impl Nuance {
                     self.globals.time = self.sim_time.elapsed().as_secs_f32();
                 }
                 Event::RedrawRequested(_) => {
+                    // Tell the profiler we're running a new frame
+                    puffin::GlobalProfiler::lock().new_frame();
+
+                    // Update egui frame time
                     self.gui.update_time(app_time.elapsed().as_secs_f64());
+
+                    // Query window properties
                     let window_size = self.window.inner_size();
                     let screen_desc = ScreenDescriptor {
                         physical_width: window_size.width,
                         physical_height: window_size.height,
                         scale_factor: self.window.scale_factor() as f32,
                     };
+
+                    // Generate the GUI
                     let paint_jobs = Gui::render(&proxy, &screen_desc, &mut self);
+
+                    // Render the UI
                     self.renderer
                         .render(
                             &screen_desc,

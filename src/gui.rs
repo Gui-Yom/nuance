@@ -20,6 +20,8 @@ pub struct Gui {
     pub egui_platform: Platform,
     /// Logical size
     pub ui_width: u32,
+    /// true if the profiling window should be open
+    pub profiling_window: bool,
 }
 
 impl Gui {
@@ -27,6 +29,7 @@ impl Gui {
         Self {
             egui_platform,
             ui_width,
+            profiling_window: false,
         }
     }
 
@@ -43,6 +46,9 @@ impl Gui {
         window: &ScreenDescriptor,
         app: &mut Nuance,
     ) -> Vec<ClippedMesh> {
+        // Profiler
+        puffin::profile_scope!("create gui");
+
         app.gui.egui_platform.begin_frame();
 
         let mut framerate = (1.0 / app.settings.target_framerate.as_secs_f32()).round() as u32;
@@ -93,6 +99,7 @@ impl Gui {
                 }
                 if ui.button("Load").clicked() {
                     if let Some(path) = FileDialog::new()
+                        .set_parent(&app.window)
                         .add_filter("Shaders", &["glsl", "frag", "spv"])
                         .pick_file()
                     {
@@ -160,6 +167,7 @@ impl Gui {
                 );
             });
 
+        let window_ref = &app.window;
         let path_ref = &mut app.export_data.path;
         let format_ref = &mut app.export_data.format;
         let size_x_ref = &mut app.export_data.size.x;
@@ -176,6 +184,7 @@ impl Gui {
                     ui.label(path_ref.to_str().unwrap());
                     if ui.button("...").clicked() {
                         if let Some(path) = FileDialog::new()
+                            .set_parent(window_ref)
                             //.add_filter("Image", &[&format_ref.to_string()])
                             .save_file()
                         {
@@ -204,6 +213,10 @@ impl Gui {
                     proxy.send_event(Command::Export).unwrap();
                 }
             });
+
+        if app.gui.profiling_window {
+            app.gui.profiling_window = puffin_egui::profiler_window(&app.gui.context());
+        }
 
         // End the UI frame. We could now handle the output and draw the UI with the backend.
         let (_, paint_commands) = app.gui.egui_platform.end_frame();

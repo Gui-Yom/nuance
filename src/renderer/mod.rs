@@ -177,6 +177,8 @@ impl Renderer {
         params_buffer: &[u8],
         push_constants: &[u8],
     ) -> Result<()> {
+        puffin::profile_scope!("render ui");
+
         // We use double buffering, so select the output texture
         let frame = self.swapchain.get_current_frame()?.output;
         let view_desc = TextureViewDescriptor::default();
@@ -194,21 +196,25 @@ impl Renderer {
         }
 
         // Upload all resources for the GPU.
-        self.egui_rpass
-            .update_texture(&self.device, &self.queue, gui.0);
-        self.egui_rpass
-            .update_user_textures(&self.device, &self.queue);
-        self.egui_rpass
-            .update_buffers(&self.device, &self.queue, gui.1, &screen_desc);
+        {
+            puffin::profile_scope!("record egui pass");
 
-        // Record all render passes.
-        self.egui_rpass.execute(
-            &mut encoder,
-            &frame.view,
-            gui.1,
-            &screen_desc,
-            Some(Color::BLACK),
-        );
+            self.egui_rpass
+                .update_texture(&self.device, &self.queue, gui.0);
+            self.egui_rpass
+                .update_user_textures(&self.device, &self.queue);
+            self.egui_rpass
+                .update_buffers(&self.device, &self.queue, gui.1, &screen_desc);
+
+            // Record all render passes.
+            self.egui_rpass.execute(
+                &mut encoder,
+                &frame.view,
+                gui.1,
+                &screen_desc,
+                Some(Color::BLACK),
+            );
+        }
 
         // Launch !
         self.queue.submit(Some(encoder.finish()));

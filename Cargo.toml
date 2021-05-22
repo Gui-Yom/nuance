@@ -37,13 +37,17 @@ mint = "0.5"
 # Filesystem watcher
 notify = "4"
 # File dialogs
-rfd = "0.3"
+rfd = "0.4"
 # Logger api
 log = { version = "0.4", features = ["std"] }
 # Logger implementation
 simplelog = "0.10"
+# Profiling
+puffin = "0.4"
 # GUI
 egui = { version = "0.12" }
+# Profiling ui
+puffin_egui = "0.2"
 # Image encoding
 image = { version = "0.23", default-features = false, features = ["png", "bmp", "jpeg", "gif"] }
 

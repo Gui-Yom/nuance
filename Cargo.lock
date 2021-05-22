@@ -20,9 +20,9 @@ checksum = "739f4a8db6605981345c5654f3a85b056ce52f37a39d34da03f25bf2151ea16e"
 
 [[package]]
 name = "ahash"
-version = "0.7.2"
+version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f200cbb1e856866d9eade941cf3aa0c5d7dd36f74311c4273b494f4ef036957"
+checksum = "11149c3eb723d15cb065a9ea5cc74ab57250f098ef33c9f6f7f39b48bd207750"
 dependencies = [
  "getrandom 0.2.3",
  "once_cell",
@@ -724,7 +724,7 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80e2db640801230bdda80629bc3a063927a462f5eaf38a98da676954e78ccb99"
 dependencies = [
- "ahash 0.7.2",
+ "ahash 0.7.3",
  "atomic_refcell",
  "emath",
  "ordered-float",
@@ -1132,9 +1132,9 @@ dependencies = [
 
 [[package]]
 name = "gpu-alloc"
-version = "0.4.6"
+version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c83e37330a1881e1dae36553f2326b14f4fda84e7e40eab84f0c9bafa7c09230"
+checksum = "cbc1b6ca374e81862526786d9cb42357ce03706ed1b8761730caafd02ab91f3a"
 dependencies = [
  "bitflags",
  "gpu-alloc-types",
@@ -1794,6 +1794,8 @@ dependencies = [
  "log",
  "mint",
  "notify",
+ "puffin",
+ "puffin_egui",
  "rfd",
  "shaderc",
  "simplelog",
@@ -1911,9 +1913,9 @@ checksum = "af8b08b04175473088b46763e51ee54da5f9a164bc162f615b91bc179dbf15a3"
 
 [[package]]
 name = "ordered-float"
-version = "2.2.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b50b8919aecb97e5ee9aceef27e24f39c46b11831130f4a6b7b091ec5de0de12"
+checksum = "76d99537dd7019c4dabfcf3898a43ee685412f76e6bee1ecc48785d730c1a275"
 dependencies = [
  "num-traits",
 ]
@@ -2085,6 +2087,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3a66d5e88679f2720126c11ee29da07a08f094eac52306b066edd7d393752d6"
 
 [[package]]
+name = "puffin"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f771f52585939392a9516a8b802662de3b717c515391c0945c28293867acf262"
+dependencies = [
+ "byteorder",
+ "once_cell",
+]
+
+[[package]]
+name = "puffin_egui"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d34d9615d28863c7636c455ca64b9e712a32b35553b0ef06980d589cfad48b21"
+dependencies = [
+ "egui",
+ "once_cell",
+ "puffin",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2194,9 +2217,9 @@ checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
 
 [[package]]
 name = "rfd"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d70f2f644f85e23857c7fa9b939ec6a85f3eace37ebcae9ec977a33865496f5"
+checksum = "c1084e570d9ce1890734b33edd8c1a7b7276076f9610fa23a48aa955587da141"
 dependencies = [
  "block",
  "dispatch",

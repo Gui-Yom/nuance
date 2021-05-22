@@ -16,6 +16,8 @@ fn main() -> Result<()> {
         }
     }
 
+    puffin::set_scopes_on(true);
+
     TermLogger::init(
         LevelFilter::Debug,
         ConfigBuilder::new()
