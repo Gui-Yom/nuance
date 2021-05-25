@@ -49,7 +49,7 @@ fn main() -> Result<()> {
 
     // Going async !
     let app = futures_executor::block_on(Nuance::init(window, power_preference))?;
-    futures_executor::block_on(app.run(event_loop))?;
+    app.run(event_loop)?;
 
     Ok(())
 }

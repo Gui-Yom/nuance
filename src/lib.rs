@@ -13,6 +13,7 @@ use image::ImageFormat;
 use log::{debug, error, info};
 use mint::Vector2;
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
+use rfd::FileDialog;
 use wgpu::PowerPreference;
 use winit::event::{Event, MouseScrollDelta, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -31,12 +32,21 @@ pub mod shader_loader;
 
 #[derive(Debug)]
 pub enum Command {
-    Load(PathBuf),
+    /// Open a pick file dialog and load a shader
+    Load,
+    /// Reload the shader from disk
     Reload,
+    /// Watch the shader for fs changes
     Watch,
+    /// Unwatch the shader
     Unwatch,
-    Restart,
-    Export,
+    /// Reset the globals to their default
+    ResetGlobals,
+    /// Reset the shader params to their default
+    ResetParams,
+    /// Export a render of the current shader
+    ExportImage,
+    /// Terminate the application
     Exit,
 }
 
@@ -94,10 +104,10 @@ pub struct Nuance {
     window: Window,
     gui: Gui,
     /// App settings
-    pub settings: Settings,
+    settings: Settings,
 
     /// The current loaded shader
-    pub shader: Option<Shader>,
+    shader: Option<Shader>,
     /// Shader compiler and transpiler
     shader_loader: ShaderLoader,
     watcher: RecommendedWatcher,
@@ -107,12 +117,13 @@ pub struct Nuance {
     renderer: Renderer,
 
     /// The instant at which the simulation started
+    /// Reset on simulation restart
     sim_time: Instant,
-    pub watching: bool,
+    watching: bool,
     /// Parameters passed to shaders
-    pub globals: Globals,
+    globals: Globals,
 
-    pub export_data: ExportData,
+    export_data: ExportData,
 }
 
 impl Nuance {
@@ -175,13 +186,14 @@ impl Nuance {
         })
     }
     /// Runs the window, will block the thread until completion
-    pub async fn run(mut self, event_loop: EventLoop<Command>) -> Result<()> {
-        let mut last_draw_time = Instant::now();
+    pub fn run(mut self, event_loop: EventLoop<Command>) -> Result<()> {
+        let mut last_draw = Instant::now();
         //let ev_sender = event_loop.create_proxy();
         // To send user events to the event loop
         let proxy = event_loop.create_proxy();
 
-        let app_time = Instant::now();
+        // Time since start
+        let start_time = Instant::now();
 
         event_loop.run(move |event, _, control_flow| {
             if let Ok(DebouncedEvent::Write(_)) = self.watcher_rx.try_recv() {
@@ -192,38 +204,45 @@ impl Nuance {
             self.gui.handle_event(&event);
 
             match event {
+                // Commands allow running code on the next loop
+                // This is needed because the UI code triggers some functionalities
+                // we can't execute immediately
                 Event::UserEvent(cmd) => match cmd {
-                    Command::Load(path) => {
-                        proxy.send_event(Command::Unwatch).unwrap();
-                        self.load(&path);
+                    Command::Load => {
+                        if let Some(path) = FileDialog::new()
+                            .set_parent(&self.window)
+                            .add_filter("Shaders", &["glsl", "frag", "spv"])
+                            .pick_file()
+                        {
+                            self.unwatch();
+                            self.load(&path);
+                        }
                     }
                     Command::Reload => {
                         info!("Reloading !");
                         self.load(self.shader.as_ref().unwrap().main.clone());
                     }
                     Command::Watch => {
-                        if let Some(path) = self.shader.as_ref().map(|it| &it.main) {
-                            self.watcher
-                                .watch(path, RecursiveMode::NonRecursive)
-                                .unwrap();
-                        }
+                        self.watch();
                     }
                     Command::Unwatch => {
-                        if self.watching {
-                            if let Some(shader) = self.shader.as_ref() {
-                                self.watcher
-                                    .unwatch(&shader.main)
-                                    .expect("Unexpected state");
-                            }
-                        }
+                        self.unwatch();
                     }
-                    Command::Restart => {
-                        info!("Restarting !");
+                    Command::ResetGlobals => {
+                        info!("Resetting globals !");
                         // Reset the running globals
                         self.globals.reset();
                         self.sim_time = Instant::now();
                     }
-                    Command::Export => {}
+                    Command::ResetParams => {
+                        info!("Resetting params !");
+                        if let Some(Some(metadata)) =
+                            self.shader.as_mut().map(|it| it.metadata.as_mut())
+                        {
+                            metadata.reset_params();
+                        }
+                    }
+                    Command::ExportImage => {}
                     Command::Exit => {
                         *control_flow = ControlFlow::Exit;
                     }
@@ -266,24 +285,26 @@ impl Nuance {
                     _ => {}
                 },
                 Event::MainEventsCleared => {
-                    let frame_time = last_draw_time.elapsed();
-                    if frame_time >= self.settings.target_framerate {
+                    // Do not poll events, wait until next frame based on target fps
+                    let since_last_draw = last_draw.elapsed();
+                    if since_last_draw >= self.settings.target_framerate {
                         self.window.request_redraw();
-                        last_draw_time = Instant::now();
                     } else {
                         // Sleep til next frame
                         *control_flow = ControlFlow::WaitUntil(
-                            Instant::now() + self.settings.target_framerate - frame_time,
+                            Instant::now() + self.settings.target_framerate - since_last_draw,
                         );
                     }
+
+                    // Update shader time based on current restart time
                     self.globals.time = self.sim_time.elapsed().as_secs_f32();
                 }
                 Event::RedrawRequested(_) => {
                     // Tell the profiler we're running a new frame
                     puffin::GlobalProfiler::lock().new_frame();
 
-                    // Update egui frame time
-                    self.gui.update_time(app_time.elapsed().as_secs_f64());
+                    // Update egui frame time from app start time
+                    self.gui.update_time(start_time.elapsed().as_secs_f64());
 
                     // Query window properties
                     let window_size = self.window.inner_size();
@@ -310,13 +331,16 @@ impl Nuance {
                             self.globals.as_std430().as_bytes(),
                         )
                         .unwrap();
+
                     self.globals.frame += 1;
+                    last_draw = Instant::now();
                 }
                 _ => {}
             }
         });
     }
 
+    /// Immediate load
     fn load<P: AsRef<Path>>(&mut self, path: P) {
         info!("Loading {}", path.as_ref().to_str().unwrap());
         let reload_start = Instant::now();
@@ -345,6 +369,26 @@ impl Nuance {
             Err(e) => {
                 error!("{}", e);
                 error!("Can't load {}", path.as_ref().to_str().unwrap());
+            }
+        }
+    }
+
+    /// Immediate watch
+    fn watch(&mut self) {
+        if let Some(path) = self.shader.as_ref().map(|it| &it.main) {
+            self.watcher
+                .watch(path, RecursiveMode::NonRecursive)
+                .unwrap();
+        }
+    }
+
+    /// Immediate unwatch
+    fn unwatch(&mut self) {
+        if self.watching {
+            if let Some(shader) = self.shader.as_ref() {
+                self.watcher
+                    .unwatch(&shader.main)
+                    .expect("Unexpected state");
             }
         }
     }

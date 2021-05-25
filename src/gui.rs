@@ -69,7 +69,7 @@ impl Gui {
             ui.label(format!("frame : {}", app.globals.frame));
 
             if ui.small_button("Reset").clicked() {
-                proxy.send_event(Command::Restart).unwrap();
+                proxy.send_event(Command::ResetGlobals).unwrap();
             }
 
             ui.separator();
@@ -98,13 +98,7 @@ impl Gui {
                     app.export_data.export_prompt = true;
                 }
                 if ui.button("Load").clicked() {
-                    if let Some(path) = FileDialog::new()
-                        .set_parent(&app.window)
-                        .add_filter("Shaders", &["glsl", "frag", "spv"])
-                        .pick_file()
-                    {
-                        proxy.send_event(Command::Load(path)).unwrap();
-                    }
+                    proxy.send_event(Command::Load).unwrap();
                 }
                 if app.shader.is_some() && ui.checkbox(&mut app.watching, "watch").changed() {
                     if app.watching {
@@ -127,7 +121,7 @@ impl Gui {
                 ui.horizontal(|ui| {
                     ui.label("Params");
                     if ui.button("Reset").clicked() {
-                        metadata.reset_params();
+                        proxy.send_event(Command::ResetParams).unwrap();
                     }
                 });
                 let sliders = &mut metadata.sliders;
@@ -210,7 +204,7 @@ impl Gui {
                 });
 
                 if ui.button("export").clicked() {
-                    proxy.send_event(Command::Export).unwrap();
+                    proxy.send_event(Command::ExportImage).unwrap();
                 }
             });
 
