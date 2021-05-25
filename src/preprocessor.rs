@@ -57,13 +57,64 @@ impl VisitorMut for ShaderMetadata {
                 let slider_name = ident0.content.0.as_str();
                 for slider in self.sliders.iter() {
                     match slider {
-                        Slider::Float { name, min, max, .. } => {
+                        Slider::Float {
+                            name,
+                            min,
+                            max,
+                            default,
+                            ..
+                        } => {
                             if name == slider_name {
                                 *expr = Expr::FloatConst(match ident1.content.0.as_str() {
                                     "max" => *max,
                                     "min" => *min,
-                                    _ => panic!("No such field exist !"),
+                                    "init" => *default,
+                                    // No . accessors on a float value
+                                    other => panic!("No such property '{}' on float param", other),
                                 });
+                                return Visit::Parent;
+                            }
+                        }
+                        Slider::Vec2 { name, default, .. } => {
+                            if name == slider_name {
+                                match ident1.content.0.as_str() {
+                                    "init" => {
+                                        *expr = Expr::FunCall(
+                                            FunIdentifier::TypeSpecifier(TypeSpecifier {
+                                                ty: TypeSpecifierNonArray::Vec2,
+                                                array_specifier: None,
+                                            }),
+                                            default
+                                                .as_ref()
+                                                .iter()
+                                                .map(|it| Expr::FloatConst(*it))
+                                                .collect(),
+                                        );
+                                    }
+                                    // . accessors exists but we won't check them here
+                                    other => debug!("No such property '{}' on vec2 param", other),
+                                }
+                                return Visit::Parent;
+                            }
+                        }
+                        Slider::Vec3 { name, default, .. } => {
+                            if name == slider_name {
+                                match ident1.content.0.as_str() {
+                                    "init" => {
+                                        *expr = Expr::FunCall(
+                                            FunIdentifier::TypeSpecifier(TypeSpecifier {
+                                                ty: TypeSpecifierNonArray::Vec3,
+                                                array_specifier: None,
+                                            }),
+                                            default
+                                                .as_ref()
+                                                .iter()
+                                                .map(|it| Expr::FloatConst(*it))
+                                                .collect(),
+                                        );
+                                    }
+                                    other => debug!("No such property '{}' on vec3 param", other),
+                                }
                                 return Visit::Parent;
                             }
                         }
