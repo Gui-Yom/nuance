@@ -66,7 +66,7 @@ included here for demonstration purposes. They are the property of their respect
 
 ## Development
 
-We use `shaderc-rs` to compile shaders to spirv. It is therefore highly recommended to install the
+We use `shaderc-rs` to compile GLSL shaders to spirv. It is therefore highly recommended to install the
 vulkan sdk and set the `VULKAN_SDK` env var in order to find the prebuilt shaderc libraries. If not,
 shaderc will download and build the vulkan libraries from source, which takes about 90% of this
 entire application build time.
@@ -83,8 +83,10 @@ Ideas and tasks I should work on in no particular order.
 - Bind buffers as output
 - Provide access to last rendered texture for stateful simulations
 - Sound processing (in and out)
-- Save to image, gif or video
+- Save to gif or video
 - Load shaders directly from [shadertoy.com](https://shadertoy.com) (need to convert globals)
 - Shader editor (code editor, GLSL highlighting)
-- Custom parser for glsl  
+- Small standard library for GLSL shaders with common functions
+- Custom additions to GLSL language built into the preprocessor for a more fluent language
+- Custom parser for glsl
 - Support rust-gpu shaders

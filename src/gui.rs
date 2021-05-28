@@ -173,35 +173,24 @@ impl Gui {
             .resizable(false)
             .scroll(false)
             .show(&app.gui.context(), |ui| {
-                // File path
-                ui.horizontal(|ui| {
-                    ui.label(path_ref.to_str().unwrap());
-                    if ui.button("...").clicked() {
-                        if let Some(path) = FileDialog::new()
-                            .set_parent(window_ref)
-                            //.add_filter("Image", &[&format_ref.to_string()])
-                            .save_file()
-                        {
-                            path_ref.push(&path);
-                        }
-                    }
-                });
+                egui::ComboBox::from_label("format")
+                    .selected_text(format_ref.extensions_str()[0])
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(format_ref, ImageFormat::Png, "PNG");
+                        ui.selectable_value(format_ref, ImageFormat::Bmp, "BMP");
+                        ui.selectable_value(format_ref, ImageFormat::Gif, "GIF");
+                        ui.selectable_value(format_ref, ImageFormat::Jpeg, "JPEG");
+                    });
 
-                if let Ok(format) = ImageFormat::from_path(path_ref) {
-                    if format.can_write() {
-                        *format_ref = format;
-                    } else {
-                        ui.colored_label(Color32::RED, "× Unsupported image format");
-                    }
-                } else {
-                    ui.colored_label(Color32::RED, "× Unknown image format");
-                }
                 ui.horizontal(|ui| {
                     ui.label("Size :");
                     ui.add(DragValue::new(size_x_ref).suffix("px"));
                     ui.label("x");
                     ui.add(DragValue::new(size_y_ref).suffix("px"));
                 });
+                if *size_x_ref % 64 != 0 {
+                    ui.colored_label(Color32::RED, "× Image width must be a multiple of 64");
+                }
 
                 if ui.button("export").clicked() {
                     proxy.send_event(Command::ExportImage).unwrap();

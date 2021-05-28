@@ -3,13 +3,12 @@ use std::str::FromStr;
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
-use anyhow::Result;
-use crevice::std430::AsStd430;
-use crevice::std430::Std430;
+use anyhow::{Context, Result};
+use crevice::std430::{AsStd430, Std430};
 use egui::{FontDefinitions, Style};
 use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::{Platform, PlatformDescriptor};
-use image::{ImageBuffer, ImageFormat, Rgba};
+use image::{Bgra, ImageBuffer, ImageFormat, Rgba};
 use log::{debug, error, info};
 use mint::Vector2;
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
@@ -243,7 +242,14 @@ impl Nuance {
                         }
                     }
                     Command::ExportImage => {
-                        self.export_image();
+                        if let Some(path) = FileDialog::new()
+                            .set_parent(&self.window)
+                            .add_filter("Image", self.export_data.format.extensions_str())
+                            .save_file()
+                        {
+                            self.export_data.path.push(&path);
+                            self.export_image();
+                        }
                     }
                     Command::Exit => {
                         *control_flow = ControlFlow::Exit;
@@ -419,9 +425,11 @@ impl Nuance {
                     .unwrap_or_default(),
                 globals.as_std430().as_bytes(),
                 |buf| {
-                    let image =
-                        ImageBuffer::<Rgba<u8>, _>::from_raw(size.x, size.y, &buf[..]).unwrap();
-                    image.save_with_format(path, *format).unwrap();
+                    let image = ImageBuffer::<Rgba<_>, _>::from_raw(size.x, size.y, &buf[..])
+                        .context("Can't create image from buffer")?;
+                    image.save_with_format(path, *format)?;
+
+                    Ok(())
                 },
             )
             .unwrap();

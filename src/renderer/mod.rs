@@ -97,7 +97,7 @@ impl Renderer {
             .await?;
 
         // The output format
-        let format = TextureFormat::Bgra8UnormSrgb;
+        let format = TextureFormat::Rgba8UnormSrgb;
         let window_size = window.inner_size();
 
         let swapchain = {
@@ -236,10 +236,11 @@ impl Renderer {
         render_size: Vector2<u32>,
         params_buffer: &[u8],
         push_constants: &[u8],
-        consume: impl FnOnce(BufferView),
+        consume: impl FnOnce(BufferView) -> Result<()>,
     ) -> Result<()> {
         if render_size.x % 64 != 0 {
             error!("Render size must be a multiple of 64 because reasons");
+            return Err(anyhow::anyhow!("Invalid render size"));
         }
 
         let render_tex_desc = TextureDescriptor {
@@ -315,8 +316,6 @@ impl Renderer {
         futures_executor::block_on(mapping)?;
         let view = slice.get_mapped_range();
 
-        consume(view);
-
-        Ok(())
+        consume(view)
     }
 }
