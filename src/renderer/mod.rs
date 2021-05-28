@@ -1,13 +1,21 @@
+use std::mem;
+use std::num::NonZeroU32;
+use std::time::Instant;
+
 use anyhow::{Context, Result};
 use egui::ClippedMesh;
 use egui_wgpu_backend::ScreenDescriptor;
-use log::{debug, info};
+use image::{DynamicImage, ImageBuffer, Rgba, RgbaImage};
+use log::{debug, error, info};
+use mint::Vector2;
+use puffin::ProfilerScope;
 use wgpu::{
-    include_spirv, Adapter, BackendBit, Color, CommandEncoderDescriptor, Device, Extent3d,
-    Features, Instance, Limits, PowerPreference, PresentMode, Queue, RequestAdapterOptions,
-    ShaderFlags, ShaderModule, ShaderModuleDescriptor, ShaderSource, Surface, SwapChain,
-    SwapChainDescriptor, Texture, TextureDescriptor, TextureFormat, TextureUsage,
-    TextureViewDescriptor,
+    include_spirv, Adapter, BackendBit, BufferAddress, BufferDescriptor, BufferUsage, BufferView,
+    Color, CommandEncoderDescriptor, Device, Extent3d, Features, ImageCopyBuffer, ImageCopyTexture,
+    ImageCopyTextureBase, ImageDataLayout, Instance, Limits, Maintain, MapMode, Origin3d,
+    PowerPreference, PresentMode, Queue, RequestAdapterOptions, ShaderFlags, ShaderModule,
+    ShaderModuleDescriptor, ShaderSource, Surface, SwapChain, SwapChainDescriptor, Texture,
+    TextureDescriptor, TextureFormat, TextureUsage, TextureViewDescriptor,
 };
 use winit::window::Window;
 
@@ -31,6 +39,7 @@ pub struct Renderer {
     vertex_shader: ShaderModule,
     render_tex: Texture,
 
+    shader_module: Option<ShaderModule>,
     shader_rpass: Option<ShaderRenderPass>,
     pub egui_rpass: egui_wgpu_backend::RenderPass,
 }
@@ -90,11 +99,7 @@ impl Renderer {
             .await?;
 
         // The output format
-        let format = if power_preference == PowerPreference::LowPower {
-            TextureFormat::Rgba8UnormSrgb
-        } else {
-            TextureFormat::Bgra8UnormSrgb
-        };
+        let format = TextureFormat::Bgra8UnormSrgb;
         let window_size = window.inner_size();
 
         let swapchain = {
@@ -143,7 +148,8 @@ impl Renderer {
             swapchain,
             vertex_shader,
             render_tex,
-            // Start with no loaded shader
+            // Start with nothing loaded
+            shader_module: None,
             shader_rpass: None,
             egui_rpass,
         })
@@ -167,7 +173,8 @@ impl Renderer {
             push_constant_size,
             params_buffer_size,
             self.format,
-        ))
+        ));
+        self.shader_module = Some(module);
     }
 
     pub fn render(
@@ -177,7 +184,9 @@ impl Renderer {
         params_buffer: &[u8],
         push_constants: &[u8],
     ) -> Result<()> {
-        puffin::profile_scope!("render ui");
+        puffin::profile_function!();
+
+        let mut _profiler_scope = ProfilerScope::new("init", puffin::short_file_name(file!()), "");
 
         // We use double buffering, so select the output texture
         let frame = self.swapchain.get_current_frame()?.output;
@@ -190,14 +199,17 @@ impl Renderer {
 
         let render_tex_view = self.render_tex.create_view(&view_desc);
 
+        mem::drop(_profiler_scope);
+
         if let Some(shader_rpass) = self.shader_rpass.as_ref() {
+            puffin::profile_scope!("shader render pass");
             shader_rpass.update_buffers(&self.queue, params_buffer);
             shader_rpass.execute(&mut encoder, &render_tex_view, push_constants);
         }
 
-        // Upload all resources for the GPU.
+        // Egui render pass
         {
-            puffin::profile_scope!("record egui pass");
+            puffin::profile_scope!("egui render pass");
 
             self.egui_rpass
                 .update_texture(&self.device, &self.queue, gui.0);
@@ -218,6 +230,95 @@ impl Renderer {
 
         // Launch !
         self.queue.submit(Some(encoder.finish()));
+        Ok(())
+    }
+
+    pub fn render_to_buffer(
+        &self,
+        render_size: Vector2<u32>,
+        params_buffer: &[u8],
+        push_constants: &[u8],
+        consume: impl FnOnce(BufferView),
+    ) -> Result<()> {
+        if render_size.x % 64 != 0 {
+            error!("Render size must be a multiple of 64 because reasons");
+        }
+
+        let render_tex_desc = TextureDescriptor {
+            label: Some("one time render"),
+            size: Extent3d {
+                width: render_size.x,
+                height: render_size.y,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: self.format,
+            usage: TextureUsage::RENDER_ATTACHMENT | TextureUsage::COPY_SRC,
+        };
+        let render_tex = self.device.create_texture(&render_tex_desc);
+
+        let output_buffer_size = (4 * render_size.x * render_size.y) as BufferAddress;
+        let output_buffer_desc = BufferDescriptor {
+            size: output_buffer_size,
+            usage: BufferUsage::COPY_DST | BufferUsage::MAP_READ,
+            label: None,
+            mapped_at_creation: false,
+        };
+        let output_buffer = self.device.create_buffer(&output_buffer_desc);
+
+        let shader_rpass = ShaderRenderPass::new(
+            &self.device,
+            &self.vertex_shader,
+            self.shader_module.as_ref().unwrap(),
+            push_constants.len() as u32,
+            params_buffer.len() as u64,
+            self.format,
+        );
+
+        let render_tex_view = render_tex.create_view(&TextureViewDescriptor::default());
+
+        // This pack a set of render passes for the gpu to execute
+        let mut encoder = self
+            .device
+            .create_command_encoder(&CommandEncoderDescriptor {
+                label: Some("image render"),
+            });
+
+        shader_rpass.update_buffers(&self.queue, params_buffer);
+        shader_rpass.execute(&mut encoder, &render_tex_view, push_constants);
+
+        encoder.copy_texture_to_buffer(
+            ImageCopyTexture {
+                texture: &render_tex,
+                mip_level: 0,
+                origin: Origin3d::ZERO,
+            },
+            ImageCopyBuffer {
+                buffer: &output_buffer,
+                layout: ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: NonZeroU32::new(4 * render_size.x),
+                    rows_per_image: NonZeroU32::new(render_size.y),
+                },
+            },
+            Extent3d {
+                width: render_size.x,
+                height: render_size.y,
+                depth_or_array_layers: 1,
+            },
+        );
+        self.queue.submit(Some(encoder.finish()));
+
+        let slice = output_buffer.slice(..);
+        let mapping = slice.map_async(MapMode::Read);
+        self.device.poll(Maintain::Wait);
+        futures_executor::block_on(mapping)?;
+        let view = slice.get_mapped_range();
+
+        consume(view);
+
         Ok(())
     }
 }

@@ -9,7 +9,7 @@ use crevice::std430::Std430;
 use egui::{FontDefinitions, Style};
 use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::{Platform, PlatformDescriptor};
-use image::ImageFormat;
+use image::{ImageBuffer, ImageFormat, Rgba};
 use log::{debug, error, info};
 use mint::Vector2;
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};
@@ -51,7 +51,7 @@ pub enum Command {
 }
 
 /// The globals we pass to the fragment shader
-#[derive(AsStd430)]
+#[derive(AsStd430, Clone)]
 pub struct Globals {
     /// Window resolution
     pub resolution: Vector2<u32>,
@@ -94,7 +94,7 @@ impl Default for ExportData {
             export_prompt: false,
             size: Vector2::from([2048, 2048]),
             format: ImageFormat::Png,
-            path: PathBuf::from_str("./render.png").unwrap(),
+            path: PathBuf::from_str("render.png").unwrap(),
         }
     }
 }
@@ -242,7 +242,9 @@ impl Nuance {
                             metadata.reset_params();
                         }
                     }
-                    Command::ExportImage => {}
+                    Command::ExportImage => {
+                        self.export_image();
+                    }
                     Command::Exit => {
                         *control_flow = ControlFlow::Exit;
                     }
@@ -391,5 +393,37 @@ impl Nuance {
                     .expect("Unexpected state");
             }
         }
+    }
+
+    fn export_image(&self) {
+        let export_start = Instant::now();
+
+        let ExportData {
+            size, path, format, ..
+        } = &self.export_data;
+
+        let mut globals = self.globals.clone();
+        globals.resolution = *size;
+        globals.ratio = globals.resolution.x as f32 / globals.resolution.y as f32;
+
+        let buf = self.renderer.render_to_buffer(
+            *size,
+            &self
+                .shader
+                .as_ref()
+                .map(|it| it.metadata.as_ref().map(|it| it.params_buffer()))
+                .unwrap_or_default()
+                .unwrap_or_default(),
+            globals.as_std430().as_bytes(),
+            |buf| {
+                let image = ImageBuffer::<Rgba<u8>, _>::from_raw(size.x, size.y, &buf[..]).unwrap();
+                image.save_with_format(path, *format);
+            },
+        );
+
+        info!(
+            "Exported image ! (took {} ms)",
+            export_start.elapsed().as_millis()
+        );
     }
 }

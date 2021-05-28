@@ -94,9 +94,6 @@ impl Gui {
             ui.separator();
 
             ui.horizontal(|ui| {
-                if ui.button("Export").clicked() {
-                    app.export_data.export_prompt = true;
-                }
                 if ui.button("Load").clicked() {
                     proxy.send_event(Command::Load).unwrap();
                 }
@@ -106,6 +103,9 @@ impl Gui {
                     } else {
                         proxy.send_event(Command::Unwatch).unwrap();
                     }
+                }
+                if app.shader.is_some() && ui.button("Export").clicked() {
+                    app.export_data.export_prompt = true;
                 }
             });
 
