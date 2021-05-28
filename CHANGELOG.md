@@ -9,14 +9,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- Color picker for `layout(color) vec3`
-- Triple drag value for `vec3`
-- Double drag value for `vec2`
+- Color picker for `layout(color) vec3` param
+- Triple drag value for `vec3` param
+- Double drag value for `vec2` param
+- Checkbox for `boolean` param
 - Initializers for vector types
 - Grid to display sliders
 - Manual documenting shader syntax
 - Links to repo and manual
 - Reset button to reset params to their default values
+- Initial support for WGSL shaders
 
 ### Changed (internal)
 
