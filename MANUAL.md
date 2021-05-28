@@ -16,6 +16,10 @@ Import |✔️  |✔️  |    |✔️
 Std    |✔️  |    |    |
 Params |✔️  |    |    |
 
+## Shader inputs
+
+Access the current sample coordinates with `fragCoord`. The origin is the upper left.
+
 ## Shader output
 
 ```glsl
@@ -68,11 +72,11 @@ layout(push_constant) uniform Globals {
 // Mouse position
     uvec2 uMouse;
 // Mouse wheel
-    float iMouseWheel;
+    float fMouseWheel;
 // Aspect ratio
     float fRatio;
 // Time in sec
-    float uTime;
+    float fTime;
 // The number of frame we're at
     uint uFrame;
 };

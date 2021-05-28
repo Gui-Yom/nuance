@@ -28,8 +28,8 @@ float waterHighlight(vec2 p, float time, float foaminess) {
 }
 
 void main() {
-    float time = uTime * 0.8 + 23.0;
-    vec2 uv = gl_FragCoord.xy / uResolution;
+    float time = fTime * 0.8 + 23.0;
+    vec2 uv = fragCoord.xy / uResolution;
     vec2 uv_square = vec2(uv.x * fRatio, uv.y);
     float dist_center = pow(2.0 * length(uv - 0.5), 2.0);
 
