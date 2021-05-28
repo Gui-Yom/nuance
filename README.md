@@ -5,6 +5,9 @@
 
 A tool to run your shaders on the gpu.
 
+![screenshot](screenshot.png)
+*Loaded with example shader : `shaders/demo/foamy_water.frag` Made by k-mouse (2016-11-23) https://www.shadertoy.com/view/llcXW7*
+
 ## Installation
 
 Install with cargo:
