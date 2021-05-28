@@ -1,21 +1,19 @@
 use std::mem;
 use std::num::NonZeroU32;
-use std::time::Instant;
 
 use anyhow::{Context, Result};
 use egui::ClippedMesh;
 use egui_wgpu_backend::ScreenDescriptor;
-use image::{DynamicImage, ImageBuffer, Rgba, RgbaImage};
 use log::{debug, error, info};
 use mint::Vector2;
 use puffin::ProfilerScope;
 use wgpu::{
     include_spirv, Adapter, BackendBit, BufferAddress, BufferDescriptor, BufferUsage, BufferView,
     Color, CommandEncoderDescriptor, Device, Extent3d, Features, ImageCopyBuffer, ImageCopyTexture,
-    ImageCopyTextureBase, ImageDataLayout, Instance, Limits, Maintain, MapMode, Origin3d,
-    PowerPreference, PresentMode, Queue, RequestAdapterOptions, ShaderFlags, ShaderModule,
-    ShaderModuleDescriptor, ShaderSource, Surface, SwapChain, SwapChainDescriptor, Texture,
-    TextureDescriptor, TextureFormat, TextureUsage, TextureViewDescriptor,
+    ImageDataLayout, Instance, Limits, Maintain, MapMode, Origin3d, PowerPreference, PresentMode,
+    Queue, RequestAdapterOptions, ShaderFlags, ShaderModule, ShaderModuleDescriptor, ShaderSource,
+    Surface, SwapChain, SwapChainDescriptor, Texture, TextureDescriptor, TextureFormat,
+    TextureUsage, TextureViewDescriptor,
 };
 use winit::window::Window;
 

@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 

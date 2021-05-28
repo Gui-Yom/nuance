@@ -134,7 +134,7 @@ impl ShaderRenderPass {
         output_tex: &TextureView,
         push_constants: &[u8],
     ) {
-        puffin::profile_scope!("record shader pass");
+        puffin::profile_scope!("shader pass execute");
 
         let mut rpass = encoder.begin_render_pass(&RenderPassDescriptor {
             label: Some("main render pass"),

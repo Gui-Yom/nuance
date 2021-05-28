@@ -377,21 +377,23 @@ impl Nuance {
 
     /// Immediate watch
     fn watch(&mut self) {
+        // TODO should watch for every file that is part of compilation
         if let Some(path) = self.shader.as_ref().map(|it| &it.main) {
             self.watcher
                 .watch(path, RecursiveMode::NonRecursive)
                 .unwrap();
+            info!("Watching loaded shader for changes.");
         }
     }
 
     /// Immediate unwatch
     fn unwatch(&mut self) {
-        if self.watching {
-            if let Some(shader) = self.shader.as_ref() {
-                self.watcher
-                    .unwatch(&shader.main)
-                    .expect("Unexpected state");
-            }
+        // TODO should unwatch for every file that is part of compilation
+        if let Some(shader) = self.shader.as_ref() {
+            self.watcher
+                .unwatch(&shader.main)
+                .expect("Unexpected state");
+            info!("Not watching for changes anymore.");
         }
     }
 
@@ -406,20 +408,23 @@ impl Nuance {
         globals.resolution = *size;
         globals.ratio = globals.resolution.x as f32 / globals.resolution.y as f32;
 
-        let buf = self.renderer.render_to_buffer(
-            *size,
-            &self
-                .shader
-                .as_ref()
-                .map(|it| it.metadata.as_ref().map(|it| it.params_buffer()))
-                .unwrap_or_default()
-                .unwrap_or_default(),
-            globals.as_std430().as_bytes(),
-            |buf| {
-                let image = ImageBuffer::<Rgba<u8>, _>::from_raw(size.x, size.y, &buf[..]).unwrap();
-                image.save_with_format(path, *format);
-            },
-        );
+        self.renderer
+            .render_to_buffer(
+                *size,
+                &self
+                    .shader
+                    .as_ref()
+                    .map(|it| it.metadata.as_ref().map(|it| it.params_buffer()))
+                    .unwrap_or_default()
+                    .unwrap_or_default(),
+                globals.as_std430().as_bytes(),
+                |buf| {
+                    let image =
+                        ImageBuffer::<Rgba<u8>, _>::from_raw(size.x, size.y, &buf[..]).unwrap();
+                    image.save_with_format(path, *format).unwrap();
+                },
+            )
+            .unwrap();
 
         info!(
             "Exported image ! (took {} ms)",
