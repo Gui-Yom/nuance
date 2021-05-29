@@ -260,6 +260,13 @@ impl Slider {
                 let ref_mut = unsafe { mem::transmute(value) };
                 ui.color_edit_button_rgb(ref_mut);
             }
+            Slider::Bool { name, value, .. } => {
+                ui.label(name.as_str());
+                let mut val = *value != 0;
+                if ui.checkbox(&mut val, "").changed() {
+                    *value = if val { 1 } else { 0 };
+                }
+            }
         }
     }
 }

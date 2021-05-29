@@ -26,6 +26,11 @@ pub enum Slider {
         value: Vector3<f32>,
         default: Vector3<f32>,
     },
+    Bool {
+        name: String,
+        value: u32,
+        default: u32,
+    },
 }
 
 macro_rules! reset_impl {
@@ -42,7 +47,7 @@ macro_rules! reset_impl {
     )
 }
 
-reset_impl!(Slider, Float Vec2 Vec3 Color);
+reset_impl!(Slider, Float Vec2 Vec3 Color Bool);
 
 macro_rules! write_impl {
     ($align:ident, $enum:ident, $($item:ident )*) => {
@@ -58,7 +63,7 @@ macro_rules! write_impl {
     };
 }
 
-write_impl!(std140, Slider, Float Vec2 Vec3 Color);
+write_impl!(std140, Slider, Float Vec2 Vec3 Color Bool);
 
 /// Traverses the ast and extract useful data while converting the ast to valid glsl source
 #[derive(Default)]

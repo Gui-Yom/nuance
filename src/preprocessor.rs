@@ -276,6 +276,38 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
                 }
             });
         }
+        TypeSpecifierNonArray::Bool => {
+            let mut init = 0;
+
+            if let Some(TypeQualifier { qualifiers }) = field.qualifier.as_ref() {
+                if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) =
+                    qualifiers.first().unwrap()
+                {
+                    for qualifier in ids.iter() {
+                        if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
+                            match id.content.0.as_str() {
+                                "init" => match param.as_ref().unwrap().as_ref() {
+                                    Expr::BoolConst(value) => {
+                                        init = if *value { 1 } else { 0 };
+                                    }
+                                    _ => {
+                                        error!("Expected boolean value");
+                                    }
+                                },
+                                other => {
+                                    error!("Wrong slider setting : {}", other);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return Ok(Slider::Bool {
+                name,
+                value: init,
+                default: init,
+            });
+        }
         _ => {}
     }
     Err(anyhow!("Invalid field in params block"))
