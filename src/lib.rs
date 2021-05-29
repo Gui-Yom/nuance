@@ -8,7 +8,7 @@ use crevice::std430::{AsStd430, Std430};
 use egui::{FontDefinitions, Style};
 use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::{Platform, PlatformDescriptor};
-use image::{Bgra, ImageBuffer, ImageFormat, Rgba};
+use image::{ImageBuffer, ImageFormat, Rgba};
 use log::{debug, error, info};
 use mint::Vector2;
 use notify::{watcher, DebouncedEvent, RecommendedWatcher, RecursiveMode, Watcher};

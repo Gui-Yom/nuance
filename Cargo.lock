@@ -174,9 +174,9 @@ checksum = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
 
 [[package]]
 name = "bumpalo"
-version = "3.6.1"
+version = "3.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63396b8a4b9de3f4fdfb320ab6080762242f66a8ef174c49d8e19b674db4cdbe"
+checksum = "9c59e7af012c713f529e7a3ee57ce9b31ddd858d4b512923602f74608b009631"
 
 [[package]]
 name = "bytemuck"
@@ -1626,9 +1626,9 @@ dependencies = [
 
 [[package]]
 name = "naga"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f470a97eafcdd0dbea43d5e1a8ef3557aa31f49ba643d9430dbbf911c162b24c"
+checksum = "c8d74f2c7ace793a760165ac0679d6830809ad4e85f6886f72e4f8c4aa4291c5"
 dependencies = [
  "bit-set",
  "bitflags",
@@ -2074,9 +2074,9 @@ checksum = "c3a66d5e88679f2720126c11ee29da07a08f094eac52306b066edd7d393752d6"
 
 [[package]]
 name = "puffin"
-version = "0.4.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f771f52585939392a9516a8b802662de3b717c515391c0945c28293867acf262"
+checksum = "01ba4e30f4697d680f3ce9c167a196d8123b48959a89e97d3fbc7d009d2a048e"
 dependencies = [
  "byteorder",
  "once_cell",
@@ -2084,9 +2084,9 @@ dependencies = [
 
 [[package]]
 name = "puffin_egui"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d34d9615d28863c7636c455ca64b9e712a32b35553b0ef06980d589cfad48b21"
+checksum = "19596f760f6c221e12e8620bd8eb4eccfc6fb00f545077c37dcab8b8baf0d3f2"
 dependencies = [
  "egui",
  "once_cell",

@@ -1,6 +1,6 @@
 [package]
 name = "nuance"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Guillaume Anthouard <guillaume.anthouard@hotmail.fr>"]
 edition = "2018"
 include = ["src/**/*", "LICENSE", "README.md"]
@@ -43,11 +43,11 @@ log = { version = "0.4", features = ["std"] }
 # Logger implementation
 simplelog = "0.10"
 # Profiling
-puffin = "0.4"
+puffin = "0.5"
 # GUI
 egui = { version = "0.12" }
 # Profiling ui
-puffin_egui = "0.2"
+puffin_egui = "0.3"
 # Image encoding
 image = { version = "0.23", default-features = false, features = ["png", "bmp", "jpeg", "gif"] }
 
@@ -61,7 +61,7 @@ rev = "c81234662e5118d115922e89d0f0f6fbc9ac560f"
 [dependencies.egui_wgpu_backend]
 version = "0.8"
 #git = "https://github.com/hasenbanck/egui_wgpu_backend"
-#rev = "b651ee9b669fdce74f3e26356d61d5df78d80edf"
+#rev = "b52664ab966ed9c9d34d2101c3772b9b21e195f3"
 
 # Egui platform impl with winit
 [dependencies.egui_winit_platform]

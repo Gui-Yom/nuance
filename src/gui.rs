@@ -8,7 +8,6 @@ use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::Platform;
 use image::ImageFormat;
 use log::debug;
-use rfd::FileDialog;
 use winit::event::Event;
 use winit::event_loop::EventLoopProxy;
 
@@ -161,8 +160,6 @@ impl Gui {
                 );
             });
 
-        let window_ref = &app.window;
-        let path_ref = &mut app.export_data.path;
         let format_ref = &mut app.export_data.format;
         let size_x_ref = &mut app.export_data.size.x;
         let size_y_ref = &mut app.export_data.size.y;
