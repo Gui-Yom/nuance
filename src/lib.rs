@@ -45,6 +45,8 @@ pub enum Command {
     ResetParams,
     /// Export a render of the current shader
     ExportImage,
+    Pause,
+    Resume,
     /// Terminate the application
     Exit,
 }
@@ -80,17 +82,14 @@ pub struct Settings {
 }
 
 pub struct ExportData {
-    pub export_prompt: bool,
     pub size: Vector2<u32>,
     pub format: ImageFormat,
-    //pub valid_format: bool,
     pub path: PathBuf,
 }
 
 impl Default for ExportData {
     fn default() -> Self {
         Self {
-            export_prompt: false,
             size: Vector2::from([2048, 2048]),
             format: ImageFormat::Png,
             path: PathBuf::from_str("render.png").unwrap(),
@@ -112,16 +111,21 @@ pub struct Nuance {
     watcher: RecommendedWatcher,
     /// Receiver for watcher events
     watcher_rx: Receiver<DebouncedEvent>,
+    watching: bool,
 
     renderer: Renderer,
-
-    /// The instant at which the simulation started
-    /// Reset on simulation restart
-    sim_time: Instant,
-    watching: bool,
     /// Parameters passed to shaders
     globals: Globals,
 
+    /// The instant at which the simulation started
+    /// Reset on simulation restart and on unpause
+    sim_start: Instant,
+    /// Accumulated time since simulation start, to account for pauses
+    /// Reset on simulation restart
+    sim_duration: Duration,
+    paused: bool,
+
+    /// Export configuration
     export_data: ExportData,
 }
 
@@ -171,7 +175,6 @@ impl Nuance {
             watcher: watcher(tx, Duration::from_millis(200))?,
             watcher_rx: rx,
             renderer,
-            sim_time: Instant::now(),
             watching: false,
             globals: Globals {
                 resolution: Vector2::from([canvas_size.width, canvas_size.height]),
@@ -181,18 +184,21 @@ impl Nuance {
                 time: 0.0,
                 frame: 0,
             },
+            sim_start: Instant::now(),
+            sim_duration: Duration::from_nanos(0),
+            paused: false,
             export_data: Default::default(),
         })
     }
     /// Runs the window, will block the thread until completion
     pub fn run(mut self, event_loop: EventLoop<Command>) -> Result<()> {
-        let mut last_draw = Instant::now();
-        //let ev_sender = event_loop.create_proxy();
-        // To send user events to the event loop
+        // To send events to this event loop
         let proxy = event_loop.create_proxy();
 
         // Time since start
         let start_time = Instant::now();
+        // Time since last draw
+        let mut last_draw = Instant::now();
 
         event_loop.run(move |event, _, control_flow| {
             if let Ok(DebouncedEvent::Write(_)) = self.watcher_rx.try_recv() {
@@ -231,7 +237,8 @@ impl Nuance {
                         info!("Resetting globals !");
                         // Reset the running globals
                         self.globals.reset();
-                        self.sim_time = Instant::now();
+                        self.sim_start = Instant::now();
+                        self.sim_duration = Duration::from_nanos(0);
                     }
                     Command::ResetParams => {
                         info!("Resetting params !");
@@ -250,6 +257,12 @@ impl Nuance {
                             self.export_data.path.push(&path);
                             self.export_image();
                         }
+                    }
+                    Command::Pause => {
+                        self.pause();
+                    }
+                    Command::Resume => {
+                        self.resume();
                     }
                     Command::Exit => {
                         *control_flow = ControlFlow::Exit;
@@ -304,8 +317,11 @@ impl Nuance {
                         );
                     }
 
-                    // Update shader time based on current restart time
-                    self.globals.time = self.sim_time.elapsed().as_secs_f32();
+                    // Update shader timem
+                    if !self.is_paused() {
+                        self.globals.time =
+                            (self.sim_start.elapsed() + self.sim_duration).as_secs_f32();
+                    }
                 }
                 Event::RedrawRequested(_) => {
                     // Tell the profiler we're running a new frame
@@ -337,11 +353,14 @@ impl Nuance {
                                 .unwrap_or_default()
                                 .unwrap_or_default(),
                             self.globals.as_std430().as_bytes(),
+                            !self.is_paused(),
                         )
                         .unwrap();
 
-                    self.globals.frame += 1;
-                    last_draw = Instant::now();
+                    if !self.is_paused() {
+                        self.globals.frame += 1;
+                        last_draw = Instant::now();
+                    }
                 }
                 _ => {}
             }
@@ -367,7 +386,8 @@ impl Nuance {
                 self.shader = Some(shader);
                 // Reset the running globals
                 self.globals.reset();
-                self.sim_time = Instant::now();
+                self.sim_start = Instant::now();
+                self.sim_duration = Duration::from_nanos(0);
 
                 info!(
                     "Loaded and ready ! (took {} ms)",
@@ -438,5 +458,23 @@ impl Nuance {
             "Exported image ! (took {} ms)",
             export_start.elapsed().as_millis()
         );
+    }
+
+    fn pause(&mut self) {
+        self.sim_duration += self.sim_start.elapsed();
+        self.paused = true;
+    }
+
+    fn is_paused(&self) -> bool {
+        self.paused
+    }
+
+    fn resume(&mut self) {
+        self.sim_start = Instant::now();
+        self.paused = false;
+    }
+
+    fn shader_loaded(&self) -> bool {
+        self.shader.is_some()
     }
 }

@@ -1,6 +1,10 @@
 #include <Nuance>
 
-#define MAX_ITER 1000
+#define MAX_ITER floor(fTime)
+
+layout(params) uniform Params {
+    bool showColor;
+};
 
 void main() {
     vec2 pos = mix(vec2(-2.5, -1), vec2(1.0, 1.0), fragCoord.xy / uResolution);
@@ -13,5 +17,9 @@ void main() {
         iter += 1;
     }
     float color = 1 - iter / MAX_ITER;
-    fragColor = vec4(color, color, color, 1.0);
+    if (showColor) {
+        fragColor = vec4(normalize(c), color, 1.0);
+    } else {
+        fragColor = vec4(color, color, color, 1.0);
+    }
 }

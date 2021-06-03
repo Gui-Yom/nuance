@@ -181,6 +181,7 @@ impl Renderer {
         gui: (&egui::Texture, &[ClippedMesh]),
         params_buffer: &[u8],
         push_constants: &[u8],
+        should_render: bool,
     ) -> Result<()> {
         puffin::profile_function!();
 
@@ -199,10 +200,12 @@ impl Renderer {
 
         mem::drop(_profiler_scope);
 
-        if let Some(shader_rpass) = self.shader_rpass.as_ref() {
-            puffin::profile_scope!("shader render pass");
-            shader_rpass.update_buffers(&self.queue, params_buffer);
-            shader_rpass.execute(&mut encoder, &render_tex_view, push_constants);
+        if should_render {
+            if let Some(shader_rpass) = self.shader_rpass.as_ref() {
+                puffin::profile_scope!("shader render pass");
+                shader_rpass.update_buffers(&self.queue, params_buffer);
+                shader_rpass.execute(&mut encoder, &render_tex_view, push_constants);
+            }
         }
 
         // Egui render pass

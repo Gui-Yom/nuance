@@ -21,6 +21,7 @@ pub struct Gui {
     pub ui_width: u32,
     /// true if the profiling window should be open
     pub profiling_window: bool,
+    export_window: bool,
 }
 
 impl Gui {
@@ -29,6 +30,7 @@ impl Gui {
             egui_platform,
             ui_width,
             profiling_window: false,
+            export_window: false,
         }
     }
 
@@ -96,15 +98,15 @@ impl Gui {
                 if ui.button("Load").clicked() {
                     proxy.send_event(Command::Load).unwrap();
                 }
-                if app.shader.is_some() && ui.checkbox(&mut app.watching, "watch").changed() {
+                if app.shader_loaded() && ui.checkbox(&mut app.watching, "watch").changed() {
                     if app.watching {
                         proxy.send_event(Command::Watch).unwrap();
                     } else {
                         proxy.send_event(Command::Unwatch).unwrap();
                     }
                 }
-                if app.shader.is_some() && ui.button("Export").clicked() {
-                    app.export_data.export_prompt = true;
+                if app.shader_loaded() && ui.button("Export").clicked() {
+                    app.gui.export_window = true;
                 }
             });
 
@@ -113,6 +115,14 @@ impl Gui {
                 ui.colored_label(Color32::GREEN, file.main.to_str().unwrap());
             } else {
                 ui.colored_label(Color32::RED, "No shader");
+            }
+
+            if app.shader_loaded() && ui.selectable_label(app.is_paused(), "Pause").clicked() {
+                if app.is_paused() {
+                    proxy.send_event(Command::Resume).unwrap();
+                } else {
+                    proxy.send_event(Command::Pause).unwrap();
+                }
             }
 
             if let Some(Some(metadata)) = app.shader.as_mut().map(|it| it.metadata.as_mut()) {
@@ -165,11 +175,11 @@ impl Gui {
         let size_y_ref = &mut app.export_data.size.y;
         egui::Window::new("Export image")
             .id(Id::new("export image window"))
-            .open(&mut app.export_data.export_prompt)
+            .open(&mut app.gui.export_window)
             .collapsible(false)
             .resizable(false)
             .scroll(false)
-            .show(&app.gui.context(), |ui| {
+            .show(&app.gui.egui_platform.context(), |ui| {
                 egui::ComboBox::from_label("format")
                     .selected_text(format_ref.extensions_str()[0])
                     .show_ui(ui, |ui| {
