@@ -19,6 +19,15 @@ lto = "thin"
 opt-level = 3
 codegen-units = 4
 
+# Enable optimizations for the image crate in dev mode
+# it's just too damn slow for anything
+[profile.dev.package.image]
+opt-level = 3
+[profile.dev.package.png]
+opt-level = 3
+[profile.dev.package.deflate]
+opt-level = 3
+
 [dependencies]
 # GPU API
 wgpu = "0.8"
