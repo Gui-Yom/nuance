@@ -35,7 +35,7 @@ impl VisitorMut for ShaderMetadata {
                             panic!("Invalid field");
                         }
                     }
-                    convert_block(block);
+                    convert_params_block(block);
                 }
             }
         }
@@ -314,7 +314,7 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
 }
 
 /// Replace the layout(params) with a predefined layout(set=?, binding=?)
-pub fn convert_block(block: &mut Block) {
+pub fn convert_params_block(block: &mut Block) {
     block.qualifier.qualifiers[0] = TypeQualifierSpec::Layout(LayoutQualifier {
         ids: vec![
             LayoutQualifierSpec::Identifier(
@@ -329,7 +329,7 @@ pub fn convert_block(block: &mut Block) {
                     content: IdentifierData(SmolStr::new("set")),
                     span: None,
                 },
-                Some(Box::new(Expr::IntConst(0))),
+                Some(Box::new(Expr::IntConst(1))),
             ),
             LayoutQualifierSpec::Identifier(
                 Identifier {

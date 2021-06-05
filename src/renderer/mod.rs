@@ -7,14 +7,7 @@ use egui_wgpu_backend::ScreenDescriptor;
 use log::{debug, error, info};
 use mint::Vector2;
 use puffin::ProfilerScope;
-use wgpu::{
-    include_spirv, Adapter, BackendBit, BufferAddress, BufferDescriptor, BufferUsage, BufferView,
-    Color, CommandEncoderDescriptor, Device, Extent3d, Features, ImageCopyBuffer, ImageCopyTexture,
-    ImageDataLayout, Instance, Limits, Maintain, MapMode, Origin3d, PowerPreference, PresentMode,
-    Queue, RequestAdapterOptions, ShaderFlags, ShaderModule, ShaderModuleDescriptor, ShaderSource,
-    Surface, SwapChain, SwapChainDescriptor, Texture, TextureDescriptor, TextureFormat,
-    TextureUsage, TextureViewDescriptor,
-};
+use wgpu::*;
 use winit::window::Window;
 
 use crate::renderer::shader::ShaderRenderPass;
@@ -33,9 +26,15 @@ pub struct Renderer {
     surface: Surface,
     format: TextureFormat,
     swapchain: SwapChain,
+    render_size: Vector2<u32>,
 
     vertex_shader: ShaderModule,
     render_tex: Texture,
+    last_render_tex: Texture,
+    #[allow(dead_code)]
+    sampler: Sampler,
+    last_render_tex_bgl: BindGroupLayout,
+    last_render_tex_bg: BindGroup,
 
     shader_module: Option<ShaderModule>,
     shader_rpass: Option<ShaderRenderPass>,
@@ -46,7 +45,7 @@ impl Renderer {
     pub async fn new(
         window: &Window,
         power_preference: PowerPreference,
-        render_size: (u32, u32),
+        render_size: Vector2<u32>,
         push_constants_size: u32,
     ) -> Result<Self> {
         let instance = Instance::new(BackendBit::PRIMARY);
@@ -115,19 +114,93 @@ impl Renderer {
         };
 
         let render_tex_desc = TextureDescriptor {
-            label: Some("yay"),
+            label: Some("shader render tex"),
             size: Extent3d {
-                width: render_size.0,
-                height: render_size.1,
+                width: render_size.x,
+                height: render_size.y,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: TextureUsage::RENDER_ATTACHMENT | TextureUsage::SAMPLED,
+            usage: TextureUsage::RENDER_ATTACHMENT | TextureUsage::SAMPLED | TextureUsage::COPY_SRC,
         };
         let render_tex = device.create_texture(&render_tex_desc);
+
+        let last_render_tex_desc = TextureDescriptor {
+            label: Some("shader last render tex"),
+            size: Extent3d {
+                width: render_size.x,
+                height: render_size.y,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: TextureUsage::SAMPLED | TextureUsage::COPY_DST,
+        };
+        let last_render_tex = device.create_texture(&last_render_tex_desc);
+
+        let sampler = device.create_sampler(&SamplerDescriptor {
+            label: Some("last render tex sampler"),
+            address_mode_u: AddressMode::Repeat,
+            address_mode_v: AddressMode::Repeat,
+            address_mode_w: AddressMode::Repeat,
+            ..Default::default()
+        });
+
+        let last_render_tex_bgl = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: None,
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStage::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float { filterable: false },
+                        view_dimension: TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStage::FRAGMENT,
+                    ty: BindingType::Sampler {
+                        filtering: false,
+                        comparison: false,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+        let last_render_tex_bg = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("last tex bind group"),
+            layout: &last_render_tex_bgl,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&last_render_tex.create_view(
+                        &TextureViewDescriptor {
+                            label: None,
+                            format: Some(format),
+                            dimension: Some(TextureViewDimension::D2),
+                            aspect: TextureAspect::All,
+                            base_mip_level: 0,
+                            mip_level_count: None,
+                            base_array_layer: 0,
+                            array_layer_count: None,
+                        },
+                    )),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(&sampler),
+                },
+            ],
+        });
 
         let vertex_shader = device.create_shader_module(&include_spirv!("screen.vert.spv"));
 
@@ -144,8 +217,14 @@ impl Renderer {
             surface,
             format,
             swapchain,
+            render_size,
             vertex_shader,
             render_tex,
+            last_render_tex,
+            sampler,
+            last_render_tex_bgl,
+            last_render_tex_bg,
+
             // Start with nothing loaded
             shader_module: None,
             shader_rpass: None,
@@ -168,6 +247,7 @@ impl Renderer {
             &self.device,
             &self.vertex_shader,
             &module,
+            &self.last_render_tex_bgl,
             push_constant_size,
             params_buffer_size,
             self.format,
@@ -204,7 +284,12 @@ impl Renderer {
             if let Some(shader_rpass) = self.shader_rpass.as_ref() {
                 puffin::profile_scope!("shader render pass");
                 shader_rpass.update_buffers(&self.queue, params_buffer);
-                shader_rpass.execute(&mut encoder, &render_tex_view, push_constants);
+                shader_rpass.execute(
+                    &mut encoder,
+                    &render_tex_view,
+                    push_constants,
+                    &self.last_render_tex_bg,
+                );
             }
         }
 
@@ -226,6 +311,27 @@ impl Renderer {
                 gui.1,
                 &screen_desc,
                 Some(Color::BLACK),
+            );
+        }
+
+        if should_render {
+            // Copy our rendered texture to the last rendered
+            encoder.copy_texture_to_texture(
+                ImageCopyTexture {
+                    texture: &self.render_tex,
+                    mip_level: 0,
+                    origin: Origin3d::ZERO,
+                },
+                ImageCopyTexture {
+                    texture: &self.last_render_tex,
+                    mip_level: 0,
+                    origin: Origin3d::ZERO,
+                },
+                Extent3d {
+                    width: self.render_size.x,
+                    height: self.render_size.y,
+                    depth_or_array_layers: 1,
+                },
             );
         }
 
@@ -274,6 +380,7 @@ impl Renderer {
             &self.device,
             &self.vertex_shader,
             self.shader_module.as_ref().unwrap(),
+            &self.last_render_tex_bgl,
             push_constants.len() as u32,
             params_buffer.len() as u64,
             self.format,
@@ -289,7 +396,12 @@ impl Renderer {
             });
 
         shader_rpass.update_buffers(&self.queue, params_buffer);
-        shader_rpass.execute(&mut encoder, &render_tex_view, push_constants);
+        shader_rpass.execute(
+            &mut encoder,
+            &render_tex_view,
+            push_constants,
+            &self.last_render_tex_bg,
+        );
 
         encoder.copy_texture_to_buffer(
             ImageCopyTexture {

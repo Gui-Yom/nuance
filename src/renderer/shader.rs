@@ -1,12 +1,4 @@
-use wgpu::{
-    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingResource, BindingType, Buffer, BufferBinding, BufferBindingType,
-    BufferDescriptor, BufferUsage, Color, ColorTargetState, ColorWrite, CommandEncoder, Device,
-    FragmentState, FrontFace, LoadOp, MultisampleState, Operations, PipelineLayoutDescriptor,
-    PolygonMode, PrimitiveState, PrimitiveTopology, PushConstantRange, Queue,
-    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
-    ShaderModule, ShaderStage, TextureFormat, TextureView, VertexState,
-};
+use wgpu::*;
 
 pub(crate) struct ShaderRenderPass {
     params_bind_group: Option<BindGroup>,
@@ -19,6 +11,7 @@ impl ShaderRenderPass {
         device: &Device,
         vertex_shader: &ShaderModule,
         shader_source: &ShaderModule,
+        last_tex_layout: &BindGroupLayout,
         push_constants_size: u32,
         params_buffer_size: u64,
         format: TextureFormat,
@@ -66,13 +59,14 @@ impl ShaderRenderPass {
             params_bind_group = None;
         }
 
+        let mut layouts = vec![last_tex_layout];
+        if let Some(layout) = &bind_group_layout {
+            layouts.push(layout);
+        }
+
         let pipeline_layout = device.create_pipeline_layout(&PipelineLayoutDescriptor {
             label: Some("nuance shader pipeline layout"),
-            bind_group_layouts: &if let Some(layout) = &bind_group_layout {
-                vec![layout]
-            } else {
-                vec![]
-            },
+            bind_group_layouts: &layouts,
             push_constant_ranges: &[PushConstantRange {
                 stages: ShaderStage::FRAGMENT,
                 range: 0..push_constants_size,
@@ -133,6 +127,7 @@ impl ShaderRenderPass {
         encoder: &mut CommandEncoder,
         output_tex: &TextureView,
         push_constants: &[u8],
+        last_tex: &BindGroup,
     ) {
         puffin::profile_scope!("shader pass execute");
 
@@ -148,8 +143,9 @@ impl ShaderRenderPass {
             }],
             depth_stencil_attachment: None,
         });
+        rpass.set_bind_group(0, last_tex, &[]);
         if let Some(bind_group) = &self.params_bind_group {
-            rpass.set_bind_group(0, bind_group, &[]);
+            rpass.set_bind_group(1, bind_group, &[]);
         }
         rpass.set_pipeline(&self.pipeline);
         // Push constants mapped to uniform block

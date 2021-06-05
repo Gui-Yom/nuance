@@ -84,7 +84,6 @@ Ideas and tasks I should work on in no particular order.
 - GPU hot switch (for when you need some extra gpu juice on the fly)
 - Bind textures as input
 - Bind buffers as output
-- Provide access to last rendered texture for stateful simulations
 - Sound processing (in and out)
 - Save to gif or video
 - Load shaders directly from [shadertoy.com](https://shadertoy.com) (need to convert globals)
