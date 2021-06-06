@@ -19,6 +19,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Links to repo and manual
 - Reset button to reset params to their default values
 - Initial support for WGSL shaders
+- Pause shader execution with a new Pause button
+- Access last shader execution result with samplePrevious()
 
 ### Changed (internal)
 

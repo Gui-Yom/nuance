@@ -38,16 +38,16 @@ float noise(vec2 st) {
 }
 
 // Sample the last frame at the given normalized coordinates
-vec4 sampleLastFrameNorm(vec2 st) {
+vec4 samplePreviousN(vec2 st) {
     return texture(sampler2D(lastFrame, lastFrameSampler), st);
 }
 
 // Sample last frame at the given coordinates in pixel coordinates
-vec4 sampleLastFrame(vec2 xy) {
-    return sampleLastFrameNorm(xy / uResolution);
+vec4 samplePrevious(vec2 xy) {
+    return samplePreviousN(xy / uResolution);
 }
 
 // Sample last frame at the current fragment coordinates
-vec4 sampleLastFrame() {
-    return sampleLastFrameNorm(fragCoordNorm);
+vec4 samplePrevious() {
+    return samplePreviousN(fragCoordNorm);
 }
