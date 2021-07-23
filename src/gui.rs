@@ -53,8 +53,8 @@ impl Gui {
         app.gui.egui_platform.begin_frame();
 
         let mut framerate = (1.0 / app.settings.target_framerate.as_secs_f32()).round() as u32;
-
-        egui::SidePanel::left("params", app.gui.ui_width as f32).show(&app.gui.context(), |ui| {
+        //app.gui.ui_width as f32
+        egui::SidePanel::left("params").show(&app.gui.context(), |ui| {
             ui.set_width(app.gui.ui_width as f32);
 
             ui.label(format!(

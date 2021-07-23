@@ -31,8 +31,6 @@ pub struct Renderer {
     vertex_shader: ShaderModule,
     render_tex: Texture,
     last_render_tex: Texture,
-    #[allow(dead_code)]
-    sampler: Sampler,
     last_render_tex_bgl: BindGroupLayout,
     last_render_tex_bg: BindGroup,
 
@@ -48,10 +46,10 @@ impl Renderer {
         render_size: Vector2<u32>,
         push_constants_size: u32,
     ) -> Result<Self> {
-        let instance = Instance::new(BackendBit::PRIMARY);
+        let instance = Instance::new(BackendBit::DX12);
         debug!("Found adapters :");
         instance
-            .enumerate_adapters(BackendBit::PRIMARY)
+            .enumerate_adapters(BackendBit::DX12)
             .for_each(|it| {
                 debug!(
                     " - {}: {:?} ({:?})",
@@ -205,9 +203,9 @@ impl Renderer {
         let vertex_shader = device.create_shader_module(&include_spirv!("screen.vert.spv"));
 
         // The egui renderer in its own render pass
-        let mut egui_rpass = egui_wgpu_backend::RenderPass::new(&device, format);
+        let mut egui_rpass = egui_wgpu_backend::RenderPass::new(&device, format, 1);
         // egui will need our render texture
-        egui_rpass.egui_texture_from_wgpu_texture(&device, &render_tex);
+        egui_rpass.egui_texture_from_wgpu_texture(&device, &render_tex, FilterMode::Linear);
 
         Ok(Self {
             instance,
@@ -221,7 +219,6 @@ impl Renderer {
             vertex_shader,
             render_tex,
             last_render_tex,
-            sampler,
             last_render_tex_bgl,
             last_render_tex_bg,
 

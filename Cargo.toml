@@ -30,7 +30,7 @@ opt-level = 3
 
 [dependencies]
 # GPU API
-wgpu = "0.8"
+wgpu = "0.9"
 # Windowing
 winit = { version = "0.25", features = ["mint"] }
 # Async runtime
@@ -52,29 +52,31 @@ log = { version = "0.4", features = ["std"] }
 # Logger implementation
 simplelog = "0.10"
 # Profiling
-puffin = "0.5"
+puffin = "0.6"
 # GUI
-egui = { version = "0.12" }
+egui = { version = "0.13" }
 # Profiling ui
-puffin_egui = "0.3"
+puffin_egui = "0.4"
 # Image encoding
 image = { version = "0.23", default-features = false, features = ["png", "bmp", "jpeg", "gif"] }
 
 # Converting structs to uniforms with alignment
 [dependencies.crevice]
-version = "0.6" # Blocker in upstream with mint types
+version = "0.7" # Blocker in upstream with mint types
 git = "https://github.com/LPGhatguy/crevice"
-rev = "c81234662e5118d115922e89d0f0f6fbc9ac560f"
+rev = "78165c1bdb22c699b2523cdfa4bd13dd60ced79f"
 
 # Render pass for egui with wgpu
 [dependencies.egui_wgpu_backend]
-version = "0.8"
+version = "0.10"
 #git = "https://github.com/hasenbanck/egui_wgpu_backend"
-#rev = "b52664ab966ed9c9d34d2101c3772b9b21e195f3"
+#rev = "63a002c6a9b6c016e45806dd065864431caab621"
+#path = "../egui_wgpu_backend"
 
 # Egui platform impl with winit
 [dependencies.egui_winit_platform]
-version = "0.7" # Blocker in upstream with clickable links and winit version
+version = "0.9"
 features = ["webbrowser"]
-git = "https://github.com/hasenbanck/egui_winit_platform"
-rev = "9fd92782d8de22d7882168d7b5ae7a2eb02448d9"
+#git = "https://github.com/hasenbanck/egui_winit_platform"
+#rev = "9fd92782d8de22d7882168d7b5ae7a2eb02448d9"
+#path = "../egui_winit_platform"

@@ -22,7 +22,8 @@ fn main() -> Result<()> {
         LevelFilter::Debug,
         ConfigBuilder::new()
             .set_target_level(LevelFilter::Error)
-            .add_filter_ignore_str("naga::front::spv")
+            .add_filter_ignore_str("naga::front")
+            .add_filter_ignore_str("naga::valid::function")
             .add_filter_ignore_str("naga::valid::interface")
             .add_filter_ignore_str("wgpu_core::instance")
             .add_filter_ignore_str("wgpu_core::device")
@@ -30,6 +31,7 @@ fn main() -> Result<()> {
             .add_filter_ignore_str("wgpu_core::command")
             .add_filter_ignore_str("wgpu_core::hub")
             .add_filter_ignore_str("gfx_backend_vulkan")
+            .add_filter_ignore_str("gfx_backend_dx12")
             .build(),
         TerminalMode::Stdout,
         ColorChoice::Auto,
