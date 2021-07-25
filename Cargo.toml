@@ -54,7 +54,7 @@ simplelog = "0.10"
 # Profiling
 puffin = "0.6"
 # GUI
-egui = { version = "0.13" }
+egui = { version = "0.13", features = ["mint"] }
 # Profiling ui
 puffin_egui = "0.4"
 # Image encoding
@@ -62,9 +62,9 @@ image = { version = "0.23", default-features = false, features = ["png", "bmp", 
 
 # Converting structs to uniforms with alignment
 [dependencies.crevice]
-version = "0.7" # Blocker in upstream with mint types
-git = "https://github.com/LPGhatguy/crevice"
-rev = "78165c1bdb22c699b2523cdfa4bd13dd60ced79f"
+version = "0.7"
+#git = "https://github.com/LPGhatguy/crevice"
+#rev = "78165c1bdb22c699b2523cdfa4bd13dd60ced79f"
 
 # Render pass for egui with wgpu
 [dependencies.egui_wgpu_backend]
