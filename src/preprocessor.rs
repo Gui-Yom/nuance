@@ -91,8 +91,7 @@ impl VisitorMut for ShaderMetadata {
                                                 .collect(),
                                         );
                                     }
-                                    // . accessors exists but we won't check them here
-                                    other => debug!("No such property '{}' on vec2 param", other),
+                                    _ => {}
                                 }
                                 return Visit::Parent;
                             }
@@ -113,7 +112,7 @@ impl VisitorMut for ShaderMetadata {
                                                 .collect(),
                                         );
                                     }
-                                    other => debug!("No such property '{}' on vec3 param", other),
+                                    _ => {}
                                 }
                                 return Visit::Parent;
                             }

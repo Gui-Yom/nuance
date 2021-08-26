@@ -665,6 +665,7 @@ dependencies = [
 [[package]]
 name = "egui_wgpu_backend"
 version = "0.11.0"
+source = "git+https://github.com/hasenbanck/egui_wgpu_backend?rev=be10e8e89e3cfc2f92a2c21eee2928db28e28c7d#be10e8e89e3cfc2f92a2c21eee2928db28e28c7d"
 dependencies = [
  "bytemuck",
  "epi",
@@ -674,6 +675,7 @@ dependencies = [
 [[package]]
 name = "egui_winit_platform"
 version = "0.9.0"
+source = "git+https://github.com/Gui-Yom/egui_winit_platform?rev=06f525497f9f61bbb7a4c9a78111d16bb2d695b4#06f525497f9f61bbb7a4c9a78111d16bb2d695b4"
 dependencies = [
  "egui",
  "webbrowser",
