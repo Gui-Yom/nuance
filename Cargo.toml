@@ -11,6 +11,7 @@ license = "Apache-2.0"
 readme = "README.md"
 keywords = ["shaders", "glsl", "graphics", "visualization", "wgpu"]
 categories = ["graphics", "rendering", "visualization"]
+resolver = "2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -30,7 +31,7 @@ opt-level = 3
 
 [dependencies]
 # GPU API
-wgpu = "0.9"
+wgpu = { version = "0.10", features = ["spirv"] }
 # Windowing
 winit = { version = "0.25", features = ["mint"] }
 # Async runtime
@@ -52,11 +53,11 @@ log = { version = "0.4", features = ["std"] }
 # Logger implementation
 simplelog = "0.10"
 # Profiling
-puffin = "0.6"
+puffin = "0.7"
 # GUI
 egui = { version = "0.13", features = ["mint"] }
 # Profiling ui
-puffin_egui = "0.4"
+puffin_egui = "0.5"
 # Image encoding
 image = { version = "0.23", default-features = false, features = ["png", "bmp", "jpeg", "gif"] }
 
@@ -68,7 +69,7 @@ version = "0.7"
 
 # Render pass for egui with wgpu
 [dependencies.egui_wgpu_backend]
-version = "0.10"
+version = "0.11"
 #git = "https://github.com/hasenbanck/egui_wgpu_backend"
 #rev = "63a002c6a9b6c016e45806dd065864431caab621"
 #path = "../egui_wgpu_backend"

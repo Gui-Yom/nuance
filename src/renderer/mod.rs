@@ -25,7 +25,6 @@ pub struct Renderer {
     #[allow(dead_code)]
     surface: Surface,
     format: TextureFormat,
-    swapchain: SwapChain,
     render_size: Vector2<u32>,
 
     vertex_shader: ShaderModule,
@@ -46,10 +45,10 @@ impl Renderer {
         render_size: Vector2<u32>,
         push_constants_size: u32,
     ) -> Result<Self> {
-        let instance = Instance::new(BackendBit::DX12);
+        let instance = Instance::new(Backends::PRIMARY);
         debug!("Found adapters :");
         instance
-            .enumerate_adapters(BackendBit::DX12)
+            .enumerate_adapters(Backends::PRIMARY)
             .for_each(|it| {
                 debug!(
                     " - {}: {:?} ({:?})",
@@ -97,19 +96,16 @@ impl Renderer {
         let format = TextureFormat::Rgba8UnormSrgb;
         let window_size = window.inner_size();
 
-        let swapchain = {
-            // Here we create the swap chain, which is basically what does the job of
-            // rendering our output in sync
-            let sc_desc = SwapChainDescriptor {
-                usage: TextureUsage::RENDER_ATTACHMENT,
+        surface.configure(
+            &device,
+            &SurfaceConfiguration {
+                usage: TextureUsages::RENDER_ATTACHMENT,
                 format,
                 width: window_size.width,
                 height: window_size.height,
                 present_mode: PresentMode::Mailbox,
-            };
-
-            device.create_swap_chain(&surface, &sc_desc)
-        };
+            },
+        );
 
         let render_tex_desc = TextureDescriptor {
             label: Some("shader render tex"),
@@ -122,7 +118,9 @@ impl Renderer {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: TextureUsage::RENDER_ATTACHMENT | TextureUsage::SAMPLED | TextureUsage::COPY_SRC,
+            usage: TextureUsages::RENDER_ATTACHMENT
+                | TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_SRC,
         };
         let render_tex = device.create_texture(&render_tex_desc);
 
@@ -137,7 +135,7 @@ impl Renderer {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: TextureUsage::SAMPLED | TextureUsage::COPY_DST,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
         };
         let last_render_tex = device.create_texture(&last_render_tex_desc);
 
@@ -154,7 +152,7 @@ impl Renderer {
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
-                    visibility: ShaderStage::FRAGMENT,
+                    visibility: ShaderStages::FRAGMENT,
                     ty: BindingType::Texture {
                         sample_type: TextureSampleType::Float { filterable: false },
                         view_dimension: TextureViewDimension::D2,
@@ -164,7 +162,7 @@ impl Renderer {
                 },
                 BindGroupLayoutEntry {
                     binding: 1,
-                    visibility: ShaderStage::FRAGMENT,
+                    visibility: ShaderStages::FRAGMENT,
                     ty: BindingType::Sampler {
                         filtering: false,
                         comparison: false,
@@ -214,7 +212,6 @@ impl Renderer {
             queue,
             surface,
             format,
-            swapchain,
             render_size,
             vertex_shader,
             render_tex,
@@ -238,7 +235,6 @@ impl Renderer {
         let module = self.device.create_shader_module(&ShaderModuleDescriptor {
             label: Some("nuance fragment shader"),
             source: shader_source,
-            flags: ShaderFlags::default(),
         });
         self.shader_rpass = Some(ShaderRenderPass::new(
             &self.device,
@@ -265,7 +261,7 @@ impl Renderer {
         let mut _profiler_scope = ProfilerScope::new("init", puffin::short_file_name(file!()), "");
 
         // We use double buffering, so select the output texture
-        let frame = self.swapchain.get_current_frame()?.output;
+        let frame = self.surface.get_current_frame()?.output;
         let view_desc = TextureViewDescriptor::default();
 
         // This pack a set of render passes for the gpu to execute
@@ -304,7 +300,7 @@ impl Renderer {
             // Record all render passes.
             self.egui_rpass.execute(
                 &mut encoder,
-                &frame.view,
+                &frame.texture.create_view(&view_desc),
                 gui.1,
                 &screen_desc,
                 Some(Color::BLACK),
@@ -318,11 +314,13 @@ impl Renderer {
                     texture: &self.render_tex,
                     mip_level: 0,
                     origin: Origin3d::ZERO,
+                    aspect: TextureAspect::All,
                 },
                 ImageCopyTexture {
                     texture: &self.last_render_tex,
                     mip_level: 0,
                     origin: Origin3d::ZERO,
+                    aspect: TextureAspect::All,
                 },
                 Extent3d {
                     width: self.render_size.x,
@@ -360,14 +358,14 @@ impl Renderer {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: self.format,
-            usage: TextureUsage::RENDER_ATTACHMENT | TextureUsage::COPY_SRC,
+            usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_SRC,
         };
         let render_tex = self.device.create_texture(&render_tex_desc);
 
         let output_buffer_size = (4 * render_size.x * render_size.y) as BufferAddress;
         let output_buffer_desc = BufferDescriptor {
             size: output_buffer_size,
-            usage: BufferUsage::COPY_DST | BufferUsage::MAP_READ,
+            usage: BufferUsages::COPY_DST | BufferUsages::MAP_READ,
             label: None,
             mapped_at_creation: false,
         };
@@ -405,6 +403,7 @@ impl Renderer {
                 texture: &render_tex,
                 mip_level: 0,
                 origin: Origin3d::ZERO,
+                aspect: TextureAspect::All,
             },
             ImageCopyBuffer {
                 buffer: &output_buffer,
