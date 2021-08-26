@@ -55,9 +55,9 @@ simplelog = "0.10"
 # Profiling
 puffin = "0.7"
 # GUI
-egui = { version = "0.13", features = ["mint"] }
+egui = { version = "0.14", features = ["mint"] }
 # Profiling ui
-puffin_egui = "0.5"
+puffin_egui = "0.6"
 # Image encoding
 image = { version = "0.23", default-features = false, features = ["png", "bmp", "jpeg", "gif"] }
 
@@ -72,7 +72,7 @@ version = "0.7"
 version = "0.11"
 #git = "https://github.com/hasenbanck/egui_wgpu_backend"
 #rev = "63a002c6a9b6c016e45806dd065864431caab621"
-#path = "../egui_wgpu_backend"
+path = "../egui_wgpu_backend"
 
 # Egui platform impl with winit
 [dependencies.egui_winit_platform]
@@ -80,4 +80,4 @@ version = "0.9"
 features = ["webbrowser"]
 #git = "https://github.com/hasenbanck/egui_winit_platform"
 #rev = "9fd92782d8de22d7882168d7b5ae7a2eb02448d9"
-#path = "../egui_winit_platform"
+path = "../egui_winit_platform"

@@ -655,9 +655,9 @@ checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
 name = "egui"
-version = "0.13.1"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77f9b394ccacc0cccb30f6de7371038a116931aa3186acd908b9ec61f405f15c"
+checksum = "56df2f3c802727b65eddaf927abf8084e60128ec7c94432834f1eac98f1e74cd"
 dependencies = [
  "epaint",
 ]
@@ -665,8 +665,6 @@ dependencies = [
 [[package]]
 name = "egui_wgpu_backend"
 version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d24cc4448d08751f8f1d8e19de6ceb4d02c5435b8f8db78d075957c0eb7be2ff"
 dependencies = [
  "bytemuck",
  "epi",
@@ -676,8 +674,6 @@ dependencies = [
 [[package]]
 name = "egui_winit_platform"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "783f6cf2246f553718a0bd28e8dfc3ae331085762020ac993ab2b68f7c2d81ae"
 dependencies = [
  "egui",
  "webbrowser",
@@ -692,9 +688,9 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
 name = "emath"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80eea7508c08a7b4e2a041adcdca6f400d8606622c6bb980ecbbdc5f1aff9a4c"
+checksum = "cca5179aa9d15128cebb79bb56dda73a79cc66b402056ff19a992e54b365e15c"
 dependencies = [
  "mint",
 ]
@@ -710,9 +706,9 @@ dependencies = [
 
 [[package]]
 name = "epaint"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "132e30d483d9fa252fe06aa112de777d068503c379fa51bc5834204ee3258fce"
+checksum = "136e7d88da926182bcfdb8217137dd347dfe5dc03b8988eaba3ef8becf83394a"
 dependencies = [
  "ab_glyph",
  "ahash 0.7.4",
@@ -723,9 +719,9 @@ dependencies = [
 
 [[package]]
 name = "epi"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b04a4a240553fa9254d0569cf3aa22d9dbe77a66025e1f04b0785744629c9ec"
+checksum = "e3c033c9b4d921566a98b8831b63af5ba2a0ad7ffa62d22b897698f36c22a28a"
 dependencies = [
  "egui",
 ]
@@ -1970,9 +1966,9 @@ dependencies = [
 
 [[package]]
 name = "puffin_egui"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f128c216cc093d39c27be89c0ca60cb3f8185658362a8135a8fcba9a7912325"
+checksum = "2f530c5a6c7dda0bfe5f63e14930bcfaa8936247f62bd29914a1033284ed9b33"
 dependencies = [
  "egui",
  "natord",

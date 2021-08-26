@@ -10,6 +10,7 @@ use image::ImageFormat;
 use log::debug;
 use winit::event::Event;
 use winit::event_loop::EventLoopProxy;
+use winit::window::Window;
 
 use crate::shader::Slider;
 use crate::{Command, Nuance};
@@ -209,7 +210,7 @@ impl Gui {
         }
 
         // End the UI frame. We could now handle the output and draw the UI with the backend.
-        let (_, paint_commands) = app.gui.egui_platform.end_frame();
+        let (_, paint_commands) = app.gui.egui_platform.end_frame(Some(&app.window));
 
         app.settings.target_framerate = Duration::from_secs_f32(1.0 / framerate as f32);
 
