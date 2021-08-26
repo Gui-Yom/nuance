@@ -60,6 +60,7 @@ egui = { version = "0.14", features = ["mint"] }
 puffin_egui = "0.6"
 # Image encoding
 image = { version = "0.23", default-features = false, features = ["png", "bmp", "jpeg", "gif"] }
+lazy_static = "1.4"
 
 # Converting structs to uniforms with alignment
 [dependencies.crevice]

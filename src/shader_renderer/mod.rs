@@ -1,15 +1,26 @@
+use lazy_static::lazy_static;
 use wgpu::*;
 
-pub(crate) struct ShaderRenderPass {
+lazy_static! {
+    static ref VERTEX_SHADER_MODULE_DESC: ShaderModuleDescriptor<'static> =
+        include_spirv!("screen.vert.spv");
+}
+
+unsafe fn get_vertex_shader_module(device: &Device) -> &'static ShaderModule {
+    static mut VERTEX_SHADER_MOD: Option<ShaderModule> = None;
+    &*VERTEX_SHADER_MOD
+        .get_or_insert_with(|| device.create_shader_module(&VERTEX_SHADER_MODULE_DESC))
+}
+
+pub struct ShaderRenderPass {
     params_bind_group: Option<BindGroup>,
     params_buffer: Option<Buffer>,
     pipeline: RenderPipeline,
 }
 
 impl ShaderRenderPass {
-    pub(crate) fn new(
+    pub fn new(
         device: &Device,
-        vertex_shader: &ShaderModule,
         shader_source: &ShaderModule,
         last_tex_layout: &BindGroupLayout,
         push_constants_size: u32,
@@ -73,6 +84,8 @@ impl ShaderRenderPass {
             }],
         });
 
+        let vertex_shader = unsafe { get_vertex_shader_module(device) };
+
         // Describes the operations to execute on a render pass
         let pipeline = device.create_render_pipeline(&RenderPipelineDescriptor {
             label: Some("nuance shader pipeline"),
@@ -115,14 +128,14 @@ impl ShaderRenderPass {
         }
     }
 
-    pub(crate) fn update_buffers(&self, queue: &Queue, params_buffer: &[u8]) {
+    pub fn update_buffers(&self, queue: &Queue, params_buffer: &[u8]) {
         if let Some(buffer) = &self.params_buffer {
             // Update the params buffer on the gpu side
             queue.write_buffer(buffer, 0, params_buffer);
         }
     }
 
-    pub(crate) fn execute(
+    pub fn execute(
         &self,
         encoder: &mut CommandEncoder,
         output_tex: &TextureView,

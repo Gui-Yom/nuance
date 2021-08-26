@@ -6,7 +6,9 @@ use winit::dpi::LogicalSize;
 use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
 
-use nuance::Nuance;
+use crate::app::Nuance;
+
+mod app;
 
 fn main() -> Result<()> {
     let mut power_preference = PowerPreference::LowPower;
@@ -37,7 +39,7 @@ fn main() -> Result<()> {
 
     info!("Starting up !");
 
-    let event_loop = EventLoop::with_user_event();
+    let event_loop = EventLoop::new();
 
     // Create the window
     let builder = WindowBuilder::new()
@@ -47,9 +49,12 @@ fn main() -> Result<()> {
         .with_visible(true);
     let window = builder.build(&event_loop)?;
 
-    // Going async !
-    let app = futures_executor::block_on(Nuance::init(window, power_preference))?;
-    app.run(event_loop)?;
+    let mut app = futures_executor::block_on(Nuance::init(window, power_preference))?;
 
-    Ok(())
+    event_loop.run(move |event, _, control_flow| {
+        app.run(event, control_flow)
+            .expect("Nuance encountered an error");
+    });
+
+    //Ok(())
 }

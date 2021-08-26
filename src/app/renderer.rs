@@ -6,13 +6,10 @@ use egui::ClippedMesh;
 use egui_wgpu_backend::ScreenDescriptor;
 use log::{debug, error, info};
 use mint::Vector2;
+use nuance::shader_renderer::ShaderRenderPass;
 use puffin::ProfilerScope;
 use wgpu::*;
 use winit::window::Window;
-
-use crate::renderer::shader::ShaderRenderPass;
-
-mod shader;
 
 pub struct Renderer {
     #[allow(dead_code)]
@@ -27,7 +24,6 @@ pub struct Renderer {
     format: TextureFormat,
     render_size: Vector2<u32>,
 
-    vertex_shader: ShaderModule,
     render_tex: Texture,
     last_render_tex: Texture,
     last_render_tex_bgl: BindGroupLayout,
@@ -198,9 +194,7 @@ impl Renderer {
             ],
         });
 
-        let vertex_shader = device.create_shader_module(&include_spirv!("screen.vert.spv"));
-
-        // The egui renderer in its own render pass
+        // The egui renderer2 in its own render pass
         let mut egui_rpass = egui_wgpu_backend::RenderPass::new(&device, format, 1);
         // egui will need our render texture
         egui_rpass.egui_texture_from_wgpu_texture(&device, &render_tex, FilterMode::Linear);
@@ -213,7 +207,6 @@ impl Renderer {
             surface,
             format,
             render_size,
-            vertex_shader,
             render_tex,
             last_render_tex,
             last_render_tex_bgl,
@@ -238,7 +231,6 @@ impl Renderer {
         });
         self.shader_rpass = Some(ShaderRenderPass::new(
             &self.device,
-            &self.vertex_shader,
             &module,
             &self.last_render_tex_bgl,
             push_constant_size,
@@ -295,16 +287,16 @@ impl Renderer {
             self.egui_rpass
                 .update_user_textures(&self.device, &self.queue);
             self.egui_rpass
-                .update_buffers(&self.device, &self.queue, gui.1, &screen_desc);
+                .update_buffers(&self.device, &self.queue, gui.1, screen_desc);
 
             // Record all render passes.
             self.egui_rpass.execute(
                 &mut encoder,
                 &frame.texture.create_view(&view_desc),
                 gui.1,
-                &screen_desc,
+                screen_desc,
                 Some(Color::BLACK),
-            );
+            )?;
         }
 
         if should_render {
@@ -373,7 +365,6 @@ impl Renderer {
 
         let shader_rpass = ShaderRenderPass::new(
             &self.device,
-            &self.vertex_shader,
             self.shader_module.as_ref().unwrap(),
             &self.last_render_tex_bgl,
             push_constants.len() as u32,

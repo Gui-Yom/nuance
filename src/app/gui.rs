@@ -9,11 +9,10 @@ use egui_winit_platform::Platform;
 use image::ImageFormat;
 use log::debug;
 use winit::event::Event;
-use winit::event_loop::EventLoopProxy;
-use winit::window::Window;
 
-use crate::shader::Slider;
-use crate::{Command, Nuance};
+use nuance::shader::Slider;
+
+use crate::app::Nuance;
 
 pub struct Gui {
     /// Egui subsystem
@@ -27,6 +26,7 @@ pub struct Gui {
 
 impl Gui {
     pub fn new(egui_platform: Platform, ui_width: u32) -> Self {
+        egui_platform.context().set_pixels_per_point(2.0);
         Self {
             egui_platform,
             ui_width,
@@ -35,7 +35,7 @@ impl Gui {
         }
     }
 
-    pub fn handle_event(&mut self, event: &Event<Command>) {
+    pub fn handle_event(&mut self, event: &Event<()>) {
         self.egui_platform.handle_event(event);
     }
 
@@ -43,11 +43,7 @@ impl Gui {
         self.egui_platform.update_time(time);
     }
 
-    pub fn render(
-        proxy: &EventLoopProxy<Command>,
-        window: &ScreenDescriptor,
-        app: &mut Nuance,
-    ) -> Vec<ClippedMesh> {
+    pub fn render(app: &mut Nuance, window: &ScreenDescriptor) -> Vec<ClippedMesh> {
         // Profiler
         puffin::profile_scope!("create gui");
 
@@ -71,7 +67,7 @@ impl Gui {
             ui.label(format!("frame : {}", app.globals.frame));
 
             if ui.small_button("Reset").clicked() {
-                proxy.send_event(Command::ResetGlobals).unwrap();
+                app.reset_globals();
             }
 
             ui.separator();
@@ -97,13 +93,13 @@ impl Gui {
 
             ui.horizontal(|ui| {
                 if ui.button("Load").clicked() {
-                    proxy.send_event(Command::Load).unwrap();
+                    app.ask_to_load();
                 }
                 if app.shader_loaded() && ui.checkbox(&mut app.watching, "watch").changed() {
                     if app.watching {
-                        proxy.send_event(Command::Watch).unwrap();
+                        app.watch();
                     } else {
-                        proxy.send_event(Command::Unwatch).unwrap();
+                        app.unwatch();
                     }
                 }
                 if app.shader_loaded() && ui.button("Export").clicked() {
@@ -112,26 +108,27 @@ impl Gui {
             });
 
             // Shader name
-            if let Some(file) = app.shader.as_ref() {
-                ui.colored_label(Color32::GREEN, file.main.to_str().unwrap());
+            if let Some(shader) = app.shader.as_ref() {
+                ui.colored_label(Color32::GREEN, shader.main.to_str().unwrap());
             } else {
                 ui.colored_label(Color32::RED, "No shader");
             }
 
             if app.shader_loaded() && ui.selectable_label(app.is_paused(), "Pause").clicked() {
                 if app.is_paused() {
-                    proxy.send_event(Command::Resume).unwrap();
+                    app.resume();
                 } else {
-                    proxy.send_event(Command::Pause).unwrap();
+                    app.pause();
                 }
             }
 
-            if let Some(Some(metadata)) = app.shader.as_mut().map(|it| it.metadata.as_mut()) {
+            let mut should_reset_params = false;
+            if let Some(metadata) = app.shader_metadata_mut() {
                 ui.separator();
                 ui.horizontal(|ui| {
                     ui.label("Params");
                     if ui.button("Reset").clicked() {
-                        proxy.send_event(Command::ResetParams).unwrap();
+                        should_reset_params = true;
                     }
                 });
                 let sliders = &mut metadata.sliders;
@@ -140,10 +137,14 @@ impl Gui {
                     //.max_col_width(self.ui_width as f32 - 20.0)
                     .show(ui, |ui| {
                         for slider in sliders {
-                            slider.draw(ui);
+                            draw_slider(slider, ui);
                             ui.end_row();
                         }
                     });
+            }
+
+            if should_reset_params {
+                app.reset_params();
             }
 
             ui.add_space(ui.available_size().y - 2.0 * ui.spacing().item_spacing.y - 30.0);
@@ -170,6 +171,8 @@ impl Gui {
                     ),
                 );
             });
+
+        let mut should_ask_export = false;
 
         let format_ref = &mut app.export_data.format;
         let size_x_ref = &mut app.export_data.size.x;
@@ -201,9 +204,13 @@ impl Gui {
                 }
 
                 if ui.button("export").clicked() {
-                    proxy.send_event(Command::ExportImage).unwrap();
+                    should_ask_export = true;
                 }
             });
+
+        if should_ask_export {
+            app.ask_to_export();
+        }
 
         if app.gui.profiling_window {
             app.gui.profiling_window = puffin_egui::profiler_window(&app.gui.context());
@@ -226,54 +233,52 @@ impl Gui {
     }
 }
 
-impl Slider {
-    pub fn draw(&mut self, ui: &mut Ui) {
-        match self {
-            Slider::Float {
-                name,
-                min,
-                max,
-                value,
-                ..
-            } => {
-                ui.label(name.as_str());
-                ui.add(
-                    DragValue::new(value)
-                        .clamp_range(*min..=*max)
-                        .speed((*max - *min) / ui.available_width())
-                        .max_decimals(3),
-                );
-            }
-            Slider::Vec2 { name, value, .. } => {
-                ui.label(name.as_str());
-                ui.spacing_mut().item_spacing.x = 2.0;
-                ui.columns(2, |columns| {
-                    columns[0].add(DragValue::new(&mut value.x).speed(0.01).max_decimals(3));
-                    columns[1].add(DragValue::new(&mut value.y).speed(0.01).max_decimals(3));
-                });
-            }
-            Slider::Vec3 { name, value, .. } => {
-                ui.label(name.as_str());
-                ui.spacing_mut().item_spacing.x = 2.0;
-                ui.columns(3, |columns| {
-                    columns[0].add(DragValue::new(&mut value.x).speed(0.01).max_decimals(3));
-                    columns[1].add(DragValue::new(&mut value.y).speed(0.01).max_decimals(3));
-                    columns[2].add(DragValue::new(&mut value.z).speed(0.01).max_decimals(3));
-                });
-            }
-            Slider::Color { name, value, .. } => {
-                ui.label(name.as_str());
-                // I feel bad for doing this BUT mint only implements AsRef but not AsMut,
-                // so this right here is the same implementation as AsRef but mutable
-                let ref_mut = unsafe { mem::transmute(value) };
-                ui.color_edit_button_rgb(ref_mut);
-            }
-            Slider::Bool { name, value, .. } => {
-                ui.label(name.as_str());
-                let mut val = *value != 0;
-                if ui.checkbox(&mut val, "").changed() {
-                    *value = if val { 1 } else { 0 };
-                }
+fn draw_slider(slider: &mut Slider, ui: &mut Ui) {
+    match slider {
+        Slider::Float {
+            name,
+            min,
+            max,
+            value,
+            ..
+        } => {
+            ui.label(name.as_str());
+            ui.add(
+                DragValue::new(value)
+                    .clamp_range(*min..=*max)
+                    .speed((*max - *min) / ui.available_width())
+                    .max_decimals(3),
+            );
+        }
+        Slider::Vec2 { name, value, .. } => {
+            ui.label(name.as_str());
+            ui.spacing_mut().item_spacing.x = 2.0;
+            ui.columns(2, |columns| {
+                columns[0].add(DragValue::new(&mut value.x).speed(0.01).max_decimals(3));
+                columns[1].add(DragValue::new(&mut value.y).speed(0.01).max_decimals(3));
+            });
+        }
+        Slider::Vec3 { name, value, .. } => {
+            ui.label(name.as_str());
+            ui.spacing_mut().item_spacing.x = 2.0;
+            ui.columns(3, |columns| {
+                columns[0].add(DragValue::new(&mut value.x).speed(0.01).max_decimals(3));
+                columns[1].add(DragValue::new(&mut value.y).speed(0.01).max_decimals(3));
+                columns[2].add(DragValue::new(&mut value.z).speed(0.01).max_decimals(3));
+            });
+        }
+        Slider::Color { name, value, .. } => {
+            ui.label(name.as_str());
+            // I feel bad for doing this BUT mint only implements AsRef but not AsMut,
+            // so this right here is the same implementation as AsRef but mutable
+            let ref_mut = unsafe { mem::transmute(value) };
+            ui.color_edit_button_rgb(ref_mut);
+        }
+        Slider::Bool { name, value, .. } => {
+            ui.label(name.as_str());
+            let mut val = *value != 0;
+            if ui.checkbox(&mut val, "").changed() {
+                *value = if val { 1 } else { 0 };
             }
         }
     }

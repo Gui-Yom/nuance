@@ -1638,6 +1638,7 @@ dependencies = [
  "futures-executor",
  "glsl-lang",
  "image",
+ "lazy_static",
  "log",
  "mint",
  "notify",
