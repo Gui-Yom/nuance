@@ -1,10 +1,9 @@
 use crevice::std430::AsStd430;
 use mint::Vector2;
 
-pub mod preprocessor;
-pub mod shader;
-pub mod shader_loader;
-pub mod shader_renderer;
+pub use shader::*;
+
+mod shader;
 
 /// The globals we pass to the fragment shader
 #[derive(AsStd430, Clone)]

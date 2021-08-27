@@ -6,10 +6,11 @@ use egui::ClippedMesh;
 use egui_wgpu_backend::ScreenDescriptor;
 use log::{debug, error, info};
 use mint::Vector2;
-use nuance::shader_renderer::ShaderRenderPass;
 use puffin::ProfilerScope;
 use wgpu::*;
 use winit::window::Window;
+
+use nuance::renderer::ShaderRenderPass;
 
 pub struct Renderer {
     #[allow(dead_code)]

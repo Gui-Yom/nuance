@@ -19,9 +19,9 @@ use winit::event::{Event, MouseScrollDelta, VirtualKeyCode, WindowEvent};
 use winit::event_loop::ControlFlow;
 use winit::window::Window;
 
-use nuance::shader::{Shader, ShaderMetadata};
-use nuance::shader_loader::ShaderLoader;
+use nuance::loader::ShaderLoader;
 use nuance::Globals;
+use nuance::{Shader, ShaderMetadata};
 
 use crate::app::gui::Gui;
 use crate::app::renderer::Renderer;

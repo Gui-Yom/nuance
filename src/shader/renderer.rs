@@ -2,14 +2,12 @@ use lazy_static::lazy_static;
 use wgpu::*;
 
 lazy_static! {
-    static ref VERTEX_SHADER_MODULE_DESC: ShaderModuleDescriptor<'static> =
-        include_spirv!("screen.vert.spv");
+    static ref VERTEX_SHADER_DESC: ShaderModuleDescriptor<'static> = include_wgsl!("quad.wgsl");
 }
 
 unsafe fn get_vertex_shader_module(device: &Device) -> &'static ShaderModule {
     static mut VERTEX_SHADER_MOD: Option<ShaderModule> = None;
-    &*VERTEX_SHADER_MOD
-        .get_or_insert_with(|| device.create_shader_module(&VERTEX_SHADER_MODULE_DESC))
+    &*VERTEX_SHADER_MOD.get_or_insert_with(|| device.create_shader_module(&VERTEX_SHADER_DESC))
 }
 
 pub struct ShaderRenderPass {

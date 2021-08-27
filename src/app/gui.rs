@@ -10,7 +10,7 @@ use image::ImageFormat;
 use log::debug;
 use winit::event::Event;
 
-use nuance::shader::Slider;
+use nuance::Slider;
 
 use crate::app::Nuance;
 

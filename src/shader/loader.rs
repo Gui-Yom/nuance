@@ -10,7 +10,7 @@ use shaderc::{
 };
 use wgpu::ShaderSource;
 
-use crate::preprocessor;
+use crate::shader::preprocessor;
 use crate::shader::Shader;
 
 pub struct ShaderLoader {
@@ -167,7 +167,7 @@ impl ShaderLoader {
             IncludeType::Standard => {
                 // The nuance standard header
                 if name == "Nuance" {
-                    const STD: &str = include_str!("Nuance.glsl");
+                    const STD: &str = include_str!("stdlib.glsl");
                     Ok(ResolvedInclude {
                         resolved_name: "NUANCE_STD".to_string(),
                         content: STD.to_string(),

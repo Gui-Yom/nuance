@@ -3,6 +3,10 @@ use std::path::PathBuf;
 use crevice::std140;
 use mint::{Vector2, Vector3};
 
+pub mod loader;
+pub mod preprocessor;
+pub mod renderer;
+
 pub enum Slider {
     Float {
         name: String,

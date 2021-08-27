@@ -19,7 +19,7 @@ use glsl_lang::{
 use log::{debug, error};
 use mint::{Vector2, Vector3};
 
-use crate::shader::{ShaderMetadata, Slider};
+use crate::{ShaderMetadata, Slider};
 
 impl VisitorMut for ShaderMetadata {
     fn visit_block(&mut self, block: &mut Block) -> Visit {
