@@ -1,6 +1,6 @@
 [package]
 name = "nuance"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Guillaume Anthouard <guillaume.anthouard@hotmail.fr>"]
 edition = "2018"
 include = ["src/**/*", "LICENSE", "README.md"]
@@ -30,37 +30,38 @@ opt-level = 3
 opt-level = 3
 
 [dependencies]
-# GPU API
-wgpu = { version = "0.10", features = ["spirv"] }
-# Windowing
-winit = { version = "0.25", features = ["mint"] }
-# Async runtime
-futures-executor = "0.3"
-# Shader compilation
-shaderc = "0.7"
-# GLSL parser
-glsl-lang = "0.1"
 # Error types
 anyhow = "1"
+# GUI
+egui = { version = "0.14", features = ["mint"] }
+# Async runtime
+futures-executor = "0.3"
+# GLSL parser
+glsl-lang = "0.1"
+# Image encoding for export
+image = { version = "0.23", default-features = false, features = ["png", "bmp", "jpeg", "gif"] }
+lazy_static = "1.4"
+# Logger api
+log = { version = "0.4", features = ["std"] }
 # Math types
 mint = "0.5"
 # Filesystem watcher
 notify = "4"
-# File dialogs
-rfd = "0.4"
-# Logger api
-log = { version = "0.4", features = ["std"] }
-# Logger implementation
-simplelog = "0.10"
 # Profiling
 puffin = "0.7"
-# GUI
-egui = { version = "0.14", features = ["mint"] }
 # Profiling ui
 puffin_egui = "0.6"
-# Image encoding
-image = { version = "0.23", default-features = false, features = ["png", "bmp", "jpeg", "gif"] }
-lazy_static = "1.4"
+# File dialogs
+rfd = "0.4"
+# GLSL compilation
+# I consider naga to be too damn much instable atm (plus it doesn't support includes)
+shaderc = "0.7"
+# Logger implementation
+simplelog = "0.10"
+# GPU API
+wgpu = { version = "0.10", features = ["spirv"] }
+# Shell/Windowing
+winit = { version = "0.25", features = ["mint"] }
 
 # Converting structs to uniforms with alignment
 [dependencies.crevice]
@@ -70,15 +71,15 @@ version = "0.7"
 
 # Render pass for egui with wgpu
 [dependencies.egui_wgpu_backend]
-version = "0.11"
-git = "https://github.com/hasenbanck/egui_wgpu_backend"
-rev = "be10e8e89e3cfc2f92a2c21eee2928db28e28c7d"
+version = "0.12"
+#git = "https://github.com/hasenbanck/egui_wgpu_backend"
+#rev = "be10e8e89e3cfc2f92a2c21eee2928db28e28c7d"
 #path = "../egui_wgpu_backend"
 
 # Egui platform impl with winit
 [dependencies.egui_winit_platform]
-version = "0.9"
+version = "0.10"
 features = ["webbrowser"]
-git = "https://github.com/Gui-Yom/egui_winit_platform"
-rev = "06f525497f9f61bbb7a4c9a78111d16bb2d695b4"
+#git = "https://github.com/Gui-Yom/egui_winit_platform"
+#rev = "06f525497f9f61bbb7a4c9a78111d16bb2d695b4"
 #path = "../egui_winit_platform"

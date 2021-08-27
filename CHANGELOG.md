@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- No more warning when accessing a vector parameter component
+
+[Unreleased]: https://github.com/Gui-Yom/nuance/compare/v0.3.0...HEAD
+
 ## [0.3.0] - 2021-07-25
 
 ### Added
@@ -38,6 +44,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Ensure std430 alignment for Globals struct with crevice
 - Ensure std140 alignment for Params struct with crevice
 
+[0.3.0]: https://github.com/Gui-Yom/nuance/compare/v0.2.0...v0.3.0
+
 ## [0.2.0] - 2021-05-12
 
 ### Added
@@ -49,6 +57,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Load shader through cli
 
+[0.2.0]: https://github.com/Gui-Yom/nuance/compare/v0.1.0...v0.2.0
+
 ## [0.1.0] - 2021-05-11
 
 ### Added
@@ -56,11 +66,5 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Initial release, more like a proof of concept
 - Load shaders, preprocess some special directives
 - GUI with egui
-
-[Unreleased]: https://github.com/Gui-Yom/nuance/compare/v0.3.0...HEAD
-
-[0.3.0]: https://github.com/Gui-Yom/nuance/compare/v0.2.0...v0.3.0
-
-[0.2.0]: https://github.com/Gui-Yom/nuance/compare/v0.1.0...v0.2.0
 
 [0.1.0]: https://github.com/Gui-Yom/nuance/releases/tag/v0.1.0

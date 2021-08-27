@@ -86,9 +86,9 @@ dependencies = [
 
 [[package]]
 name = "ash"
-version = "0.33.1+1.2.186"
+version = "0.33.2+1.2.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4207a81da2432b483058334763ac2381d00342ec3bdf02d413c4d986a610d874"
+checksum = "73e2b957a47afef62973ed5fa0a52afb3289c7a243bfbc3906090b8434971237"
 dependencies = [
  "libloading 0.7.0",
 ]
@@ -664,8 +664,9 @@ dependencies = [
 
 [[package]]
 name = "egui_wgpu_backend"
-version = "0.11.0"
-source = "git+https://github.com/hasenbanck/egui_wgpu_backend?rev=be10e8e89e3cfc2f92a2c21eee2928db28e28c7d#be10e8e89e3cfc2f92a2c21eee2928db28e28c7d"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d44a2a93ed9d03e9b7f8648fd5fc8ba56bb8391af195042fd8c85dd2544e972"
 dependencies = [
  "bytemuck",
  "epi",
@@ -674,8 +675,9 @@ dependencies = [
 
 [[package]]
 name = "egui_winit_platform"
-version = "0.9.0"
-source = "git+https://github.com/Gui-Yom/egui_winit_platform?rev=06f525497f9f61bbb7a4c9a78111d16bb2d695b4#06f525497f9f61bbb7a4c9a78111d16bb2d695b4"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88948d8fb4d705616358487982d29c8960183ba76a6ea91971651e186592977f"
 dependencies = [
  "egui",
  "webbrowser",
@@ -1628,7 +1630,7 @@ dependencies = [
 
 [[package]]
 name = "nuance"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "crevice",
