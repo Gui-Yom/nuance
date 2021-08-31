@@ -106,15 +106,20 @@ impl Gui {
                 if ui.button("Load").on_hover_text("Load a new shader").clicked() {
                     app.ask_to_load();
                 }
-                if app.shader_loaded() && ui.checkbox(&mut app.watching, "watch").on_hover_text("Watch for changes (on the filesystem) and reload the shader when necessary").changed() {
-                    if app.watching {
-                        app.watch();
-                    } else {
-                        app.unwatch();
+                if app.shader_loaded() {
+                    if ui.button("Reload").on_hover_text("Reload this shader").clicked() {
+                        app.reload();
                     }
-                }
-                if app.shader_loaded() && ui.button("Export").on_hover_text("Opens a window to export an image").clicked() {
-                    app.gui.export_window = true;
+                    if ui.checkbox(&mut app.watching, "watch").on_hover_text("Watch for changes (on the filesystem) and reload the shader when necessary").changed() {
+                        if app.watching {
+                            app.watch();
+                        } else {
+                            app.unwatch();
+                        }
+                    }
+                    if ui.button("Export").on_hover_text("Opens a window to export an image").clicked() {
+                        app.gui.export_window = true;
+                    }
                 }
             });
 
