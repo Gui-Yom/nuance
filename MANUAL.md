@@ -12,9 +12,11 @@ Some great resources to learn about shaders :
 
 Support         |GLSL|WGSL|Rust|SpirV
 ----------------|----|----|----|-----
-Tier 0 / Import |✔️  |✔️  |    |✔️
+Tier 0 / Import |✔️  |✔️  |    |✔️*
 Tier 1 / Std    |✔️  |    |    |
 Tier 2 / Params |✔️  |    |    |
+
+\* The compiled shader need to comply with the expected interface.
 
 ## Shader inputs
 

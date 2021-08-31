@@ -231,7 +231,7 @@ impl Nuance {
                 if self.ask_load {
                     if let Some(path) = FileDialog::new()
                         .set_parent(&self.window)
-                        .add_filter("Shaders", &["glsl", "frag", "spv"])
+                        .add_filter("Shaders", ShaderLoader::supported_extensions())
                         .pick_file()
                     {
                         self.unwatch();

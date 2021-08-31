@@ -32,6 +32,10 @@ impl ShaderLoader {
         Self::default()
     }
 
+    pub fn supported_extensions() -> &'static [&'static str] {
+        &["glsl", "frag", "wgsl", "spv"]
+    }
+
     pub fn add_include_dir(&mut self, include: &str) {
         self.include_dirs.push(include.to_string());
     }
