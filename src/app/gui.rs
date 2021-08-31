@@ -57,16 +57,25 @@ impl Gui {
             ui.label(format!(
                 "resolution : {:.0}x{:.0} px",
                 app.globals.resolution.x, app.globals.resolution.y
-            ));
+            ))
+            .on_hover_text("The resolution of the GPU output (on the right)");
             ui.label(format!(
                 "mouse : ({:.0}, {:.0}) px",
                 app.globals.mouse.x, app.globals.mouse.y
-            ));
-            ui.label(format!("mouse wheel : {:.1}", app.globals.mouse_wheel));
-            ui.label(format!("time : {:.3} s", app.globals.time));
-            ui.label(format!("frame : {}", app.globals.frame));
+            ))
+            .on_hover_text("The position of the mouse pointer as sent to the shader");
+            ui.label(format!("mouse wheel : {:.1}", app.globals.mouse_wheel))
+                .on_hover_text("The current value of the mouse wheel global");
+            ui.label(format!("time : {:.3} s", app.globals.time))
+                .on_hover_text("Time elapsed since the start of the shader execution");
+            ui.label(format!("frame : {}", app.globals.frame))
+                .on_hover_text("Number of frames rendered since the start of the shader execution");
 
-            if ui.small_button("Reset").clicked() {
+            if ui
+                .small_button("Reset")
+                .on_hover_text("Reset the shader globals")
+                .clicked()
+            {
                 app.reset_globals();
             }
 
@@ -80,29 +89,31 @@ impl Gui {
                     .clamp_range(4.0..=120.0)
                     .max_decimals(0)
                     .speed(0.1),
-            );
+            )
+            .on_hover_text("This is the framerate limit of the whole application.");
             ui.add(
                 DragValue::new(&mut app.settings.mouse_wheel_step)
                     .prefix("mouse wheel inc : ")
                     .clamp_range(-100.0..=100.0)
                     .max_decimals(3)
                     .speed(0.01),
-            );
+            )
+            .on_hover_text("The rate of change of the mouse wheel global");
 
             ui.separator();
 
             ui.horizontal(|ui| {
-                if ui.button("Load").clicked() {
+                if ui.button("Load").on_hover_text("Load a new shader").clicked() {
                     app.ask_to_load();
                 }
-                if app.shader_loaded() && ui.checkbox(&mut app.watching, "watch").changed() {
+                if app.shader_loaded() && ui.checkbox(&mut app.watching, "watch").on_hover_text("Watch for changes (on the filesystem) and reload the shader when necessary").changed() {
                     if app.watching {
                         app.watch();
                     } else {
                         app.unwatch();
                     }
                 }
-                if app.shader_loaded() && ui.button("Export").clicked() {
+                if app.shader_loaded() && ui.button("Export").on_hover_text("Opens a window to export an image").clicked() {
                     app.gui.export_window = true;
                 }
             });
@@ -114,7 +125,7 @@ impl Gui {
                 ui.colored_label(Color32::RED, "No shader");
             }
 
-            if app.shader_loaded() && ui.selectable_label(app.is_paused(), "Pause").clicked() {
+            if app.shader_loaded() && ui.selectable_label(app.is_paused(), "Pause").on_hover_text("Pause the current shader execution").clicked() {
                 if app.is_paused() {
                     app.resume();
                 } else {
@@ -126,8 +137,8 @@ impl Gui {
             if let Some(metadata) = app.shader_metadata_mut() {
                 ui.separator();
                 ui.horizontal(|ui| {
-                    ui.label("Params");
-                    if ui.button("Reset").clicked() {
+                    ui.label("Params").on_hover_text("Params are special values you can declare in your shader and tweak in this panel");
+                    if ui.button("Reset").on_hover_text("Reset all params to their default values").clicked() {
                         should_reset_params = true;
                     }
                 });
