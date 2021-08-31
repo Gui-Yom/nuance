@@ -108,7 +108,7 @@ impl Gui {
                 }
                 if app.shader_loaded() {
                     if ui.button("Reload").on_hover_text("Reload this shader").clicked() {
-                        app.reload();
+                        app.reload_shader();
                     }
                     if ui.checkbox(&mut app.watching, "watch").on_hover_text("Watch for changes (on the filesystem) and reload the shader when necessary").changed() {
                         if app.watching {

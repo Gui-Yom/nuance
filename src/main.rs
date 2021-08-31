@@ -3,6 +3,7 @@ use log::{info, LevelFilter};
 use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode};
 use wgpu::PowerPreference;
 use winit::dpi::LogicalSize;
+use winit::event::Event;
 use winit::event_loop::EventLoop;
 use winit::window::WindowBuilder;
 
@@ -51,9 +52,17 @@ fn main() -> Result<()> {
 
     let mut app = futures_executor::block_on(Nuance::init(window, power_preference))?;
 
-    event_loop.run(move |event, _, control_flow| {
-        app.run(event, control_flow)
-            .expect("Nuance encountered an error");
+    event_loop.run(move |event, _, control_flow| match event {
+        Event::WindowEvent { .. } => {
+            app.handle_event(event, control_flow);
+        }
+        Event::MainEventsCleared => {
+            app.update(control_flow);
+        }
+        Event::RedrawRequested(_) => {
+            app.draw();
+        }
+        _ => {}
     });
 
     //Ok(())

@@ -156,145 +156,139 @@ impl Nuance {
         })
     }
 
-    /// Runs the window, will block the thread until completion
-    pub fn run(&mut self, event: Event<'_, ()>, control_flow: &mut ControlFlow) -> Result<()> {
-        // Poll the file watcher
-        if let Ok(DebouncedEvent::Write(_)) = self.watcher_rx.try_recv() {
-            self.reload();
-        }
-
+    /// Handle an event
+    pub fn handle_event(&mut self, event: Event<'_, ()>, control_flow: &mut ControlFlow) {
+        // Let egui update with the window events
+        self.gui.handle_event(&event);
         match event {
-            Event::WindowEvent {
-                event: ref wevent,
-                window_id,
-            } => {
-                if window_id == self.window.id() {
-                    // Let egui update with the window events
-                    self.gui.handle_event(&event);
-                    match wevent {
-                        WindowEvent::CursorMoved {
-                            device_id: _device_id,
-                            position,
-                            ..
-                        } => {
-                            let scale_factor = self.window.scale_factor();
-                            if position.x > self.gui.ui_width as f64 * scale_factor {
-                                self.globals.mouse = Vector2::from([
-                                    (position.x - self.gui.ui_width as f64 * scale_factor) as u32,
-                                    position.y as u32,
-                                ]);
-                            }
-                        }
-                        WindowEvent::MouseWheel {
-                            device_id: _device_id,
-                            delta,
-                            ..
-                        } => match delta {
-                            MouseScrollDelta::LineDelta(_, value) => {
-                                self.globals.mouse_wheel += value * self.settings.mouse_wheel_step;
-                            }
-                            MouseScrollDelta::PixelDelta(pos) => {
-                                info!("{:?}", pos);
-                            }
-                        },
-                        WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
-                            Some(VirtualKeyCode::F1) => {
-                                self.gui.profiling_window = true;
-                            }
-                            _ => {}
-                        },
-                        WindowEvent::CloseRequested => {
-                            *control_flow = ControlFlow::Exit;
-                        }
-                        _ => {}
+            Event::WindowEvent { event, .. } => match event {
+                WindowEvent::CursorMoved {
+                    device_id: _device_id,
+                    position,
+                    ..
+                } => {
+                    let scale_factor = self.window.scale_factor();
+                    if position.x > self.gui.ui_width as f64 * scale_factor {
+                        self.globals.mouse = Vector2::from([
+                            (position.x - self.gui.ui_width as f64 * scale_factor) as u32,
+                            position.y as u32,
+                        ]);
                     }
                 }
-            }
-            Event::MainEventsCleared => {
-                // Do not poll events, wait until next frame based on target fps
-                let since_last_draw = self.last_draw.elapsed();
-                if since_last_draw >= self.settings.target_framerate {
-                    self.window.request_redraw();
-                } else {
-                    // Sleep til next frame
-                    *control_flow = ControlFlow::WaitUntil(
-                        Instant::now() + self.settings.target_framerate - since_last_draw,
-                    );
-                }
-
-                // Update shader timem
-                if !self.is_paused() {
-                    self.globals.time =
-                        (self.sim_start.elapsed() + self.sim_duration).as_secs_f32();
-                }
-
-                if self.ask_load {
-                    if let Some(path) = FileDialog::new()
-                        .set_parent(&self.window)
-                        .add_filter("Shaders", ShaderLoader::supported_extensions())
-                        .pick_file()
-                    {
-                        self.unwatch();
-                        self.load(&path);
+                WindowEvent::MouseWheel {
+                    device_id: _device_id,
+                    delta,
+                    ..
+                } => match delta {
+                    MouseScrollDelta::LineDelta(_, value) => {
+                        self.globals.mouse_wheel += value * self.settings.mouse_wheel_step;
                     }
-                    self.ask_load = false;
-                }
-
-                if self.ask_export {
-                    if let Some(path) = FileDialog::new()
-                        .set_parent(&self.window)
-                        .add_filter("Image", self.export_data.format.extensions_str())
-                        .save_file()
-                    {
-                        self.export_data.path.push(&path);
-                        self.export_image();
+                    MouseScrollDelta::PixelDelta(pos) => {
+                        info!("{:?}", pos);
                     }
-                    self.ask_export = false;
-                }
-            }
-            Event::RedrawRequested(window_id) => {
-                if window_id == self.window.id() {
-                    // Tell the profiler we're running a new frame
-                    puffin::GlobalProfiler::lock().new_frame();
-
-                    // Update egui frame time from app start time
-                    self.gui
-                        .update_time(self.start_time.elapsed().as_secs_f64());
-
-                    // Query window properties
-                    let window_size = self.window.inner_size();
-                    let screen_desc = ScreenDescriptor {
-                        physical_width: window_size.width,
-                        physical_height: window_size.height,
-                        scale_factor: self.window.scale_factor() as f32,
-                    };
-
-                    // Generate the GUI
-                    let paint_jobs = Gui::render(self, &screen_desc);
-
-                    // Render the UI
-                    self.renderer
-                        .render(
-                            &screen_desc,
-                            (&self.gui.texture(), &paint_jobs),
-                            &self
-                                .shader_metadata()
-                                .map(|it| it.params_buffer())
-                                .unwrap_or_default(),
-                            self.globals.as_std430().as_bytes(),
-                            !self.is_paused(),
-                        )
-                        .unwrap();
-
-                    if !self.is_paused() {
-                        self.globals.frame += 1;
-                        self.last_draw = Instant::now();
+                },
+                WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
+                    Some(VirtualKeyCode::F1) => {
+                        self.gui.profiling_window = true;
                     }
+                    _ => {}
+                },
+                WindowEvent::CloseRequested => {
+                    *control_flow = ControlFlow::Exit;
                 }
-            }
+                _ => {}
+            },
             _ => {}
         }
-        Ok(())
+    }
+
+    /// Final update
+    /// Called before draw and after handling all events
+    pub fn update(&mut self, control_flow: &mut ControlFlow) {
+        // Poll the file watcher
+        if let Ok(DebouncedEvent::Write(_)) = self.watcher_rx.try_recv() {
+            self.reload_shader();
+        }
+
+        // Do not poll events, wait until next frame based on target fps
+        let since_last_draw = self.last_draw.elapsed();
+        if since_last_draw >= self.settings.target_framerate {
+            self.window.request_redraw();
+        } else {
+            // Sleep til next frame
+            *control_flow = ControlFlow::WaitUntil(
+                Instant::now() + self.settings.target_framerate - since_last_draw,
+            );
+        }
+
+        // Update shader time
+        if !self.is_paused() {
+            self.globals.time = (self.sim_start.elapsed() + self.sim_duration).as_secs_f32();
+        }
+
+        if self.ask_load {
+            if let Some(path) = FileDialog::new()
+                .set_parent(&self.window)
+                .add_filter("Shaders", ShaderLoader::supported_extensions())
+                .pick_file()
+            {
+                self.unwatch();
+                self.load_shader(&path);
+            }
+            self.ask_load = false;
+        }
+
+        if self.ask_export {
+            if let Some(path) = FileDialog::new()
+                .set_parent(&self.window)
+                .add_filter("Image", self.export_data.format.extensions_str())
+                .save_file()
+            {
+                self.export_data.path.push(&path);
+                self.export_image();
+            }
+            self.ask_export = false;
+        }
+    }
+
+    /// Draw the app
+    pub fn draw(&mut self) {
+        // Tell the profiler we're running a new frame
+        puffin::GlobalProfiler::lock().new_frame();
+
+        // Update egui frame time from app start time
+        self.gui
+            .update_time(self.start_time.elapsed().as_secs_f64());
+
+        // Query window properties
+        let window_size = self.window.inner_size();
+        let screen_desc = ScreenDescriptor {
+            physical_width: window_size.width,
+            physical_height: window_size.height,
+            scale_factor: self.window.scale_factor() as f32,
+        };
+
+        // Generate the GUI
+        let paint_jobs = Gui::render(self, &screen_desc);
+
+        // Render the UI
+        self.renderer
+            .render(
+                &screen_desc,
+                (&self.gui.texture(), &paint_jobs),
+                &self
+                    .shader_metadata()
+                    .map(|it| it.params_buffer())
+                    .unwrap_or_default(),
+                self.globals.as_std430().as_bytes(),
+                !self.is_paused(),
+            )
+            .unwrap();
+
+        if !self.is_paused() {
+            self.globals.frame += 1;
+            self.last_draw = Instant::now();
+        }
     }
 
     /// This shows a file dialog to load a shader
@@ -304,7 +298,7 @@ impl Nuance {
     }
 
     /// Immediate load
-    fn load<P: AsRef<Path>>(&mut self, path: P) {
+    fn load_shader<P: AsRef<Path>>(&mut self, path: P) {
         info!("Loading {}", path.as_ref().to_str().unwrap());
         let reload_start = Instant::now();
 
@@ -337,10 +331,10 @@ impl Nuance {
         }
     }
 
-    fn reload(&mut self) {
+    fn reload_shader(&mut self) {
         info!("Reloading !");
         let path = self.shader.as_ref().unwrap().main.clone();
-        self.load(&path);
+        self.load_shader(&path);
     }
 
     /// Watch the currently loaded file

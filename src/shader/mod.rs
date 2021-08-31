@@ -7,6 +7,31 @@ pub mod loader;
 pub mod preprocessor;
 pub mod renderer;
 
+/// The globals we pass to the fragment shader
+#[derive(AsStd430, Clone)]
+pub struct Globals {
+    /// Window resolution
+    pub resolution: Vector2<u32>,
+    /// Mouse pos
+    pub mouse: Vector2<u32>,
+    /// Mouse wheel
+    pub mouse_wheel: f32,
+    /// Draw area width/height ratio
+    pub ratio: f32,
+    /// Current running time in sec
+    pub time: f32,
+    /// Number of frame
+    pub frame: u32,
+}
+
+impl Globals {
+    pub fn reset(&mut self) {
+        self.frame = 0;
+        self.time = 0.0;
+        self.mouse_wheel = 0.0;
+    }
+}
+
 pub enum Slider {
     Float {
         name: String,
