@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use crevice::std140;
+use crevice::std430::AsStd430;
 use mint::{Vector2, Vector3};
 
 pub mod loader;

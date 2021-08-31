@@ -7,11 +7,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+[Unreleased]: https://github.com/Gui-Yom/nuance/compare/v0.3.1...HEAD
+
+## [0.3.1] - 2021-08-31
+
+### Added
+
+- Add tooltips to the UI
+- Add a manual reload button
+
+### Changed
+
+- Code structure has been refactored heavily
+
 ### Fixed
 
 - No more warning when accessing a vector parameter component
+- Dx12 is no more the forced wgpu backend (even on linux), that was a bug
 
-[Unreleased]: https://github.com/Gui-Yom/nuance/compare/v0.3.0...HEAD
+[0.3.1]: https://github.com/Gui-Yom/nuance/compare/v0.3.0...v0.3.1
 
 ## [0.3.0] - 2021-07-25
 
