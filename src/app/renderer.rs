@@ -90,7 +90,7 @@ impl Renderer {
             .await?;
 
         // The output format
-        let format = TextureFormat::Rgba8UnormSrgb;
+        let format = TextureFormat::Bgra8UnormSrgb;
         let window_size = window.inner_size();
 
         surface.configure(

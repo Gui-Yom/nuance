@@ -1,6 +1,6 @@
 [package]
 name = "nuance"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Guillaume Anthouard <guillaume.anthouard@hotmail.fr>"]
 edition = "2018"
 include = ["src/**/*", "LICENSE", "README.md"]
