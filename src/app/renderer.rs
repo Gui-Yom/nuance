@@ -38,25 +38,32 @@ pub struct Renderer {
 impl Renderer {
     pub async fn new(
         window: &Window,
-        power_preference: PowerPreference,
+        pref_hp: bool,
         render_size: Vector2<u32>,
         push_constants_size: u32,
     ) -> Result<Self> {
-        let instance = Instance::new(Backends::PRIMARY);
+        let backend = util::backend_bits_from_env().unwrap_or(Backends::PRIMARY);
+
+        debug!("Using wgpu backend {:?}", backend);
+        let instance = Instance::new(backend);
         debug!("Found adapters :");
-        instance
-            .enumerate_adapters(Backends::PRIMARY)
-            .for_each(|it| {
-                debug!(
-                    " - {}: {:?} ({:?})",
-                    it.get_info().name,
-                    it.get_info().device_type,
-                    it.get_info().backend
-                );
-            });
+        instance.enumerate_adapters(backend).for_each(|it| {
+            debug!(
+                " - {}: {:?} ({:?})",
+                it.get_info().name,
+                it.get_info().device_type,
+                it.get_info().backend
+            );
+        });
 
         // The surface describes where we'll draw our output
         let surface = unsafe { instance.create_surface(window) };
+
+        let power_preference = if pref_hp {
+            PowerPreference::HighPerformance
+        } else {
+            util::power_preference_from_env().unwrap_or(PowerPreference::LowPower)
+        };
 
         let adapter = instance
             .request_adapter(&RequestAdapterOptions {

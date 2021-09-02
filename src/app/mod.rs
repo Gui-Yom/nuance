@@ -91,7 +91,7 @@ pub struct Nuance {
 }
 
 impl Nuance {
-    pub async fn init(window: Window, power_preference: PowerPreference) -> Result<Self> {
+    pub async fn init(window: Window, pref_hp: bool) -> Result<Self> {
         let window_size = window.inner_size();
         let scale_factor = window.scale_factor();
 
@@ -107,7 +107,7 @@ impl Nuance {
 
         let renderer = Renderer::new(
             &window,
-            power_preference,
+            pref_hp,
             canvas_size.into(),
             Globals::std430_size_static() as u32,
         )

@@ -12,10 +12,10 @@ use crate::app::Nuance;
 mod app;
 
 fn main() -> Result<()> {
-    let mut power_preference = PowerPreference::LowPower;
+    let mut pref_hp = false;
     for arg in std::env::args() {
         if arg.as_str() == "-H" {
-            power_preference = PowerPreference::HighPerformance;
+            pref_hp = true;
         }
     }
 
@@ -50,7 +50,7 @@ fn main() -> Result<()> {
         .with_visible(true);
     let window = builder.build(&event_loop)?;
 
-    let mut app = futures_executor::block_on(Nuance::init(window, power_preference))?;
+    let mut app = futures_executor::block_on(Nuance::init(window, pref_hp))?;
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::WindowEvent { .. } => {
