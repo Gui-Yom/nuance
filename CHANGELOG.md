@@ -7,7 +7,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-[Unreleased]: https://github.com/Gui-Yom/nuance/compare/v0.3.1...HEAD
+### Added
+
+- WGPU power preference can be controlled with the env var WGPU_POWER_PREF, the -H switch has priority
+- WGPU backend can be controlled with the env var WGPU_BACKEND
+
+[Unreleased]: https://github.com/Gui-Yom/nuance/compare/v0.3.2...HEAD
+
+## [0.3.2]
+
+### Fixed
+
+- Use texture format Bgra8UnormSrgb (fixes #1)
+
+[0.3.2]: https://github.com/Gui-Yom/nuance/compare/v0.3.1...v0.3.2
 
 ## [0.3.1] - 2021-08-31
 
