@@ -11,6 +11,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - WGPU power preference can be controlled with the env var WGPU_POWER_PREF, the -H switch has priority
 - WGPU backend can be controlled with the env var WGPU_BACKEND
+- The window and the side panel are now resizable, the canvas will be resized accordingly
 
 [Unreleased]: https://github.com/Gui-Yom/nuance/compare/v0.3.2...HEAD
 

@@ -168,11 +168,10 @@ impl Nuance {
                     ..
                 } => {
                     let scale_factor = self.window.scale_factor();
-                    if position.x > self.gui.ui_width as f64 * scale_factor {
-                        self.globals.mouse = Vector2::from([
-                            (position.x - self.gui.ui_width as f64 * scale_factor) as u32,
-                            position.y as u32,
-                        ]);
+                    let ui_width = self.gui.ui_width as f64 * scale_factor;
+                    if position.x > ui_width {
+                        self.globals.mouse =
+                            Vector2::from([(position.x - ui_width) as u32, position.y as u32]);
                     }
                 }
                 WindowEvent::MouseWheel {
@@ -183,8 +182,8 @@ impl Nuance {
                     MouseScrollDelta::LineDelta(_, value) => {
                         self.globals.mouse_wheel += value * self.settings.mouse_wheel_step;
                     }
-                    MouseScrollDelta::PixelDelta(pos) => {
-                        info!("{:?}", pos);
+                    _ => {
+                        log::warn!("Unsupported MouseScrollDelta::PixelDelta");
                     }
                 },
                 WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
@@ -193,6 +192,13 @@ impl Nuance {
                     }
                     _ => {}
                 },
+                WindowEvent::Resized(size) => {
+                    let mut size = size.into();
+                    self.renderer.resize(size);
+                    size.x -= self.gui.ui_width;
+                    self.renderer.resize_inner_canvas(size);
+                    self.globals.resolution = size;
+                }
                 WindowEvent::CloseRequested => {
                     *control_flow = ControlFlow::Exit;
                 }
@@ -248,6 +254,14 @@ impl Nuance {
                 self.export_image();
             }
             self.ask_export = false;
+        }
+
+        // Resize canvas if the UI got resized
+        let mut size: Vector2<u32> = self.window.inner_size().into();
+        size.x -= self.gui.ui_width;
+        if size != self.globals.resolution {
+            self.renderer.resize_inner_canvas(size);
+            self.globals.resolution = size;
         }
     }
 

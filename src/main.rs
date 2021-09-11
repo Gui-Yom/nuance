@@ -46,7 +46,7 @@ fn main() -> Result<()> {
     let builder = WindowBuilder::new()
         .with_title("Nuance")
         .with_inner_size(LogicalSize::new(1280, 720))
-        .with_resizable(false)
+        .with_resizable(true)
         .with_visible(true);
     let window = builder.build(&event_loop)?;
 

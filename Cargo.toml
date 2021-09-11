@@ -48,9 +48,9 @@ mint = "0.5"
 # Filesystem watcher
 notify = "4"
 # Profiling
-puffin = "0.7"
+puffin = "0.8"
 # Profiling ui
-puffin_egui = "0.6"
+puffin_egui = "0.7"
 # File dialogs
 rfd = "0.4"
 # GLSL compilation

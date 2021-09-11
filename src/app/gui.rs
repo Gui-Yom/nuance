@@ -26,7 +26,7 @@ pub struct Gui {
 
 impl Gui {
     pub fn new(egui_platform: Platform, ui_width: u32) -> Self {
-        egui_platform.context().set_pixels_per_point(2.0);
+        //egui_platform.context().set_pixels_per_point(2.0);
         Self {
             egui_platform,
             ui_width,
@@ -51,9 +51,7 @@ impl Gui {
 
         let mut framerate = (1.0 / app.settings.target_framerate.as_secs_f32()).round() as u32;
         //app.gui.ui_width as f32
-        egui::SidePanel::left("params").show(&app.gui.context(), |ui| {
-            ui.set_width(app.gui.ui_width as f32);
-
+        let side_panel = egui::SidePanel::left("params").show(&app.gui.context(), |ui| {
             ui.label(format!(
                 "resolution : {:.0}x{:.0} px",
                 app.globals.resolution.x, app.globals.resolution.y
@@ -174,15 +172,22 @@ impl Gui {
                     "https://github.com/Gui-Yom/nuance",
                 );
             });
-        });
+        }).response;
+
+        // Update the size of the side panel
+        // We want to resize the canvas it changes
+        app.gui.ui_width = side_panel.rect.max.x.round() as u32;
+
+        //log::info!("{:?}", app.gui.ui_width);
+        //log::info!("{:?}", app.gui.context().used_size());
+
         egui::CentralPanel::default()
             .frame(Frame::none())
             .show(&app.gui.context(), |ui| {
                 ui.image(
                     TextureId::User(0),
                     egui::Vec2::new(
-                        window.physical_width as f32 / window.scale_factor
-                            - app.gui.ui_width as f32,
+                        window.physical_width as f32 / window.scale_factor - side_panel.rect.max.x,
                         window.physical_height as f32 / window.scale_factor,
                     ),
                 );

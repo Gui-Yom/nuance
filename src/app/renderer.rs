@@ -2,7 +2,7 @@ use std::mem;
 use std::num::NonZeroU32;
 
 use anyhow::{Context, Result};
-use egui::ClippedMesh;
+use egui::{ClippedMesh, TextureId};
 use egui_wgpu_backend::ScreenDescriptor;
 use log::{debug, error, info};
 use mint::Vector2;
@@ -111,98 +111,12 @@ impl Renderer {
             },
         );
 
-        let render_tex_desc = TextureDescriptor {
-            label: Some("shader render tex"),
-            size: Extent3d {
-                width: render_size.x,
-                height: render_size.y,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format,
-            usage: TextureUsages::RENDER_ATTACHMENT
-                | TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_SRC,
-        };
-        let render_tex = device.create_texture(&render_tex_desc);
+        let render_tex = Self::create_render_tex(&device, render_size, format);
 
-        let last_render_tex_desc = TextureDescriptor {
-            label: Some("shader last render tex"),
-            size: Extent3d {
-                width: render_size.x,
-                height: render_size.y,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format,
-            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-        };
-        let last_render_tex = device.create_texture(&last_render_tex_desc);
+        let (last_render_tex, last_render_tex_bgl, last_render_tex_bg) =
+            Self::create_last_render_tex(&device, render_size, format);
 
-        let sampler = device.create_sampler(&SamplerDescriptor {
-            label: Some("last render tex sampler"),
-            address_mode_u: AddressMode::Repeat,
-            address_mode_v: AddressMode::Repeat,
-            address_mode_w: AddressMode::Repeat,
-            ..Default::default()
-        });
-
-        let last_render_tex_bgl = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: None,
-            entries: &[
-                BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Texture {
-                        sample_type: TextureSampleType::Float { filterable: false },
-                        view_dimension: TextureViewDimension::D2,
-                        multisampled: false,
-                    },
-                    count: None,
-                },
-                BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Sampler {
-                        filtering: false,
-                        comparison: false,
-                    },
-                    count: None,
-                },
-            ],
-        });
-
-        let last_render_tex_bg = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("last tex bind group"),
-            layout: &last_render_tex_bgl,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(&last_render_tex.create_view(
-                        &TextureViewDescriptor {
-                            label: None,
-                            format: Some(format),
-                            dimension: Some(TextureViewDimension::D2),
-                            aspect: TextureAspect::All,
-                            base_mip_level: 0,
-                            mip_level_count: None,
-                            base_array_layer: 0,
-                            array_layer_count: None,
-                        },
-                    )),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::Sampler(&sampler),
-                },
-            ],
-        });
-
-        // The egui renderer2 in its own render pass
+        // The egui renderer in its own render pass
         let mut egui_rpass = egui_wgpu_backend::RenderPass::new(&device, format, 1);
         // egui will need our render texture
         egui_rpass.egui_texture_from_wgpu_texture(&device, &render_tex, FilterMode::Linear);
@@ -427,5 +341,135 @@ impl Renderer {
         let view = slice.get_mapped_range();
 
         consume(view)
+    }
+
+    pub fn resize_inner_canvas(&mut self, size: Vector2<u32>) {
+        self.render_size = size;
+        self.render_tex = Self::create_render_tex(&self.device, size, self.format);
+        let temp = Self::create_last_render_tex(&self.device, size, self.format);
+        self.last_render_tex = temp.0;
+        self.last_render_tex_bgl = temp.1;
+        self.last_render_tex_bg = temp.2;
+
+        self.egui_rpass.update_egui_texture_from_wgpu_texture(
+            &self.device,
+            &self.render_tex,
+            FilterMode::Linear,
+            TextureId::User(0),
+        );
+    }
+
+    pub fn resize(&mut self, size: Vector2<u32>) {
+        self.surface.configure(
+            &self.device,
+            &SurfaceConfiguration {
+                usage: TextureUsages::RENDER_ATTACHMENT,
+                format: self.format,
+                width: size.x,
+                height: size.y,
+                present_mode: PresentMode::Mailbox,
+            },
+        );
+    }
+
+    fn create_render_tex(device: &Device, size: Vector2<u32>, format: TextureFormat) -> Texture {
+        let render_tex_desc = TextureDescriptor {
+            label: Some("shader render tex"),
+            size: Extent3d {
+                width: size.x,
+                height: size.y,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: TextureUsages::RENDER_ATTACHMENT
+                | TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_SRC,
+        };
+        device.create_texture(&render_tex_desc)
+    }
+
+    fn create_last_render_tex(
+        device: &Device,
+        size: Vector2<u32>,
+        format: TextureFormat,
+    ) -> (Texture, BindGroupLayout, BindGroup) {
+        let last_render_tex_desc = TextureDescriptor {
+            label: Some("shader last render tex"),
+            size: Extent3d {
+                width: size.x,
+                height: size.y,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+        };
+        let last_render_tex = device.create_texture(&last_render_tex_desc);
+
+        let sampler = device.create_sampler(&SamplerDescriptor {
+            label: Some("last render tex sampler"),
+            address_mode_u: AddressMode::Repeat,
+            address_mode_v: AddressMode::Repeat,
+            address_mode_w: AddressMode::Repeat,
+            ..Default::default()
+        });
+
+        let last_render_tex_bgl = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+            label: None,
+            entries: &[
+                BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Texture {
+                        sample_type: TextureSampleType::Float { filterable: false },
+                        view_dimension: TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: ShaderStages::FRAGMENT,
+                    ty: BindingType::Sampler {
+                        filtering: false,
+                        comparison: false,
+                    },
+                    count: None,
+                },
+            ],
+        });
+
+        let last_render_tex_bg = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("last tex bind group"),
+            layout: &last_render_tex_bgl,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: BindingResource::TextureView(&last_render_tex.create_view(
+                        &TextureViewDescriptor {
+                            label: None,
+                            format: Some(format),
+                            dimension: Some(TextureViewDimension::D2),
+                            aspect: TextureAspect::All,
+                            base_mip_level: 0,
+                            mip_level_count: None,
+                            base_array_layer: 0,
+                            array_layer_count: None,
+                        },
+                    )),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: BindingResource::Sampler(&sampler),
+                },
+            ],
+        });
+
+        (last_render_tex, last_render_tex_bgl, last_render_tex_bg)
     }
 }
