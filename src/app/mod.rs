@@ -14,7 +14,6 @@ use log::{debug, error, info};
 use mint::Vector2;
 use notify::{watcher, DebouncedEvent, Error, RecommendedWatcher, RecursiveMode, Watcher};
 use rfd::FileDialog;
-use wgpu::PowerPreference;
 use winit::event::{Event, MouseScrollDelta, VirtualKeyCode, WindowEvent};
 use winit::event_loop::ControlFlow;
 use winit::window::Window;

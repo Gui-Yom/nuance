@@ -1,7 +1,6 @@
 use anyhow::Result;
 use log::{info, LevelFilter};
 use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode};
-use wgpu::PowerPreference;
 use winit::dpi::LogicalSize;
 use winit::event::Event;
 use winit::event_loop::EventLoop;

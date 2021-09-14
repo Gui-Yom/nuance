@@ -65,9 +65,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.43"
+version = "1.0.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28ae2b3dec75a406790005a200b1bd89785afc02517a00ca99ecfe093ee9e6cf"
+checksum = "61604a8f862e1d5c3229fdd78f8b02c68dcf73a4c4b05fd636d12240aaa242c1"
 
 [[package]]
 name = "arrayvec"
@@ -2049,9 +2049,9 @@ checksum = "f1382d1f0a252c4bf97dc20d979a2fdd05b024acd7c2ed0f7595d7817666a157"
 
 [[package]]
 name = "rfd"
-version = "0.4.4"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "609ed912e110af7d7084b6b17d2a68b25e766208e015a37beba1be3c2d7cbb3b"
+checksum = "84b4745feef3bc92e709042c78d205e9a566ec46e18c58d4fac458e6fc12627e"
 dependencies = [
  "block",
  "dispatch",
@@ -2630,9 +2630,9 @@ dependencies = [
 
 [[package]]
 name = "wgpu-hal"
-version = "0.10.4"
+version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b33daf5eff68118c0aad030886655824052f82a164fd2e257211f742c6cade53"
+checksum = "85f0808ef9d54456793f0d7beb0fded6d68425fc12c0f30c6e6670ae9ca38f76"
 dependencies = [
  "arrayvec",
  "ash",

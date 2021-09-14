@@ -52,7 +52,7 @@ puffin = "0.8"
 # Profiling ui
 puffin_egui = "0.7"
 # File dialogs
-rfd = "0.4"
+rfd = "0.5"
 # GLSL compilation
 # I consider naga to be too damn much instable atm (plus it doesn't support includes)
 shaderc = "0.7"

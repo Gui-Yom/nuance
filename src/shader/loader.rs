@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{anyhow, Result};
-use log::{debug, error, warn};
+use log::warn;
 use shaderc::{
     CompileOptions, Compiler, EnvVersion, GlslProfile, IncludeType, OptimizationLevel,
     ResolvedInclude, ShaderKind, SourceLanguage, TargetEnv,
@@ -104,7 +104,7 @@ impl ShaderLoader {
     ) -> Result<ShaderSource<'_>> {
         let mut opts = CompileOptions::new().unwrap();
         opts.set_source_language(SourceLanguage::GLSL);
-        opts.set_optimization_level(OptimizationLevel::Performance);
+        opts.set_optimization_level(OptimizationLevel::Zero);
         opts.set_target_env(TargetEnv::Vulkan, EnvVersion::WebGPU as u32);
         //options.set_target_spirv(SpirvVersion::V1_5);
         opts.set_forced_version_profile(460, GlslProfile::None);

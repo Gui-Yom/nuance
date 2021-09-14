@@ -16,7 +16,7 @@ use glsl_lang::{
     transpiler::glsl::FormattingState,
     visitor::{HostMut, Visit, VisitorMut},
 };
-use log::{debug, error};
+use log::error;
 use mint::{Vector2, Vector3};
 
 use crate::{ShaderMetadata, Slider};

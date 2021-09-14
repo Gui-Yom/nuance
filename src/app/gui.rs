@@ -7,7 +7,6 @@ use egui::{ClippedMesh, Color32, CtxRef, DragValue, Frame, Id, Texture, TextureI
 use egui_wgpu_backend::ScreenDescriptor;
 use egui_winit_platform::Platform;
 use image::ImageFormat;
-use log::debug;
 use winit::event::Event;
 
 use nuance::Slider;
@@ -26,7 +25,6 @@ pub struct Gui {
 
 impl Gui {
     pub fn new(egui_platform: Platform, ui_width: u32) -> Self {
-        //egui_platform.context().set_pixels_per_point(2.0);
         Self {
             egui_platform,
             ui_width,
@@ -46,6 +44,8 @@ impl Gui {
     pub fn render(app: &mut Nuance, window: &ScreenDescriptor) -> Vec<ClippedMesh> {
         // Profiler
         puffin::profile_scope!("create gui");
+
+        app.gui.context().set_pixels_per_point(window.scale_factor);
 
         app.gui.egui_platform.begin_frame();
 
