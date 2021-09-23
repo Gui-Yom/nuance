@@ -6,15 +6,13 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result};
 use crevice::std430::AsStd430;
 use crevice::std430::Std430;
-use egui::{FontDefinitions, Style};
 use egui_wgpu_backend::ScreenDescriptor;
-use egui_winit_platform::{Platform, PlatformDescriptor};
 use image::{ImageBuffer, ImageFormat, Rgba};
 use log::{debug, error, info};
 use mint::Vector2;
 use notify::{watcher, DebouncedEvent, Error, RecommendedWatcher, RecursiveMode, Watcher};
 use rfd::FileDialog;
-use winit::event::{Event, MouseScrollDelta, VirtualKeyCode, WindowEvent};
+use winit::event::{MouseScrollDelta, VirtualKeyCode, WindowEvent};
 use winit::event_loop::ControlFlow;
 use winit::window::Window;
 
@@ -69,8 +67,6 @@ pub struct Nuance {
     /// Parameters passed to shaders
     globals: Globals,
 
-    // Time since start
-    start_time: Instant,
     // Time since last draw
     last_draw: Instant,
 
@@ -114,18 +110,11 @@ impl Nuance {
 
         let (tx, rx) = std::sync::mpsc::channel();
 
+        let platform = egui_for_winit::State::new(&window);
+
         Ok(Self {
             window,
-            gui: Gui::new(
-                Platform::new(PlatformDescriptor {
-                    physical_width: window_size.width,
-                    physical_height: window_size.height,
-                    scale_factor,
-                    font_definitions: FontDefinitions::default(),
-                    style: Style::default(),
-                }),
-                ui_width as u32,
-            ),
+            gui: Gui::new(platform, ui_width as u32),
             settings: Settings {
                 target_framerate: Duration::from_secs_f32(1.0 / 60.0),
                 mouse_wheel_step: 0.1,
@@ -144,7 +133,6 @@ impl Nuance {
                 time: 0.0,
                 frame: 0,
             },
-            start_time: Instant::now(),
             last_draw: Instant::now(),
             sim_start: Instant::now(),
             sim_duration: Duration::from_nanos(0),
@@ -156,53 +144,50 @@ impl Nuance {
     }
 
     /// Handle an event
-    pub fn handle_event(&mut self, event: Event<'_, ()>, control_flow: &mut ControlFlow) {
+    pub fn handle_event(&mut self, event: WindowEvent, control_flow: &mut ControlFlow) {
         // Let egui update with the window events
         self.gui.handle_event(&event);
         match event {
-            Event::WindowEvent { event, .. } => match event {
-                WindowEvent::CursorMoved {
-                    device_id: _device_id,
-                    position,
-                    ..
-                } => {
-                    let scale_factor = self.window.scale_factor();
-                    let ui_width = self.gui.ui_width as f64 * scale_factor;
-                    if position.x > ui_width {
-                        self.globals.mouse =
-                            Vector2::from([(position.x - ui_width) as u32, position.y as u32]);
-                    }
+            WindowEvent::CursorMoved {
+                device_id: _device_id,
+                position,
+                ..
+            } => {
+                let scale_factor = self.window.scale_factor();
+                let ui_width = self.gui.ui_width as f64 * scale_factor;
+                if position.x > ui_width {
+                    self.globals.mouse =
+                        Vector2::from([(position.x - ui_width) as u32, position.y as u32]);
                 }
-                WindowEvent::MouseWheel {
-                    device_id: _device_id,
-                    delta,
-                    ..
-                } => match delta {
-                    MouseScrollDelta::LineDelta(_, value) => {
-                        self.globals.mouse_wheel += value * self.settings.mouse_wheel_step;
-                    }
-                    _ => {
-                        log::warn!("Unsupported MouseScrollDelta::PixelDelta");
-                    }
-                },
-                WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
-                    Some(VirtualKeyCode::F1) => {
-                        self.gui.profiling_window = true;
-                    }
-                    _ => {}
-                },
-                WindowEvent::Resized(size) => {
-                    let mut size = size.into();
-                    self.renderer.resize(size);
-                    size.x -= self.gui.ui_width;
-                    self.renderer.resize_inner_canvas(size);
-                    self.globals.resolution = size;
+            }
+            WindowEvent::MouseWheel {
+                device_id: _device_id,
+                delta,
+                ..
+            } => match delta {
+                MouseScrollDelta::LineDelta(_, value) => {
+                    self.globals.mouse_wheel += value * self.settings.mouse_wheel_step;
                 }
-                WindowEvent::CloseRequested => {
-                    *control_flow = ControlFlow::Exit;
+                _ => {
+                    log::warn!("Unsupported MouseScrollDelta::PixelDelta");
+                }
+            },
+            WindowEvent::KeyboardInput { input, .. } => match input.virtual_keycode {
+                Some(VirtualKeyCode::F1) => {
+                    self.gui.profiling_window = true;
                 }
                 _ => {}
             },
+            WindowEvent::Resized(size) => {
+                let mut size = size.into();
+                self.renderer.resize(size);
+                size.x -= self.gui.ui_width;
+                self.renderer.resize_inner_canvas(size);
+                self.globals.resolution = size;
+            }
+            WindowEvent::CloseRequested => {
+                *control_flow = ControlFlow::Exit;
+            }
             _ => {}
         }
     }
@@ -268,10 +253,6 @@ impl Nuance {
     pub fn draw(&mut self) {
         // Tell the profiler we're running a new frame
         puffin::GlobalProfiler::lock().new_frame();
-
-        // Update egui frame time from app start time
-        self.gui
-            .update_time(self.start_time.elapsed().as_secs_f64());
 
         // Query window properties
         let window_size = self.window.inner_size();

@@ -1,6 +1,6 @@
 [package]
 name = "nuance"
-version = "0.3.2"
+version = "0.4.0"
 authors = ["Guillaume Anthouard <guillaume.anthouard@hotmail.fr>"]
 edition = "2018"
 include = ["src/**/*", "LICENSE", "README.md"]
@@ -32,8 +32,6 @@ opt-level = 3
 [dependencies]
 # Error types
 anyhow = "1"
-# GUI
-egui = { version = "0.14", features = ["mint"] }
 # Async runtime
 futures-executor = "0.3"
 # GLSL parser
@@ -63,6 +61,20 @@ wgpu = { version = "0.10", features = ["spirv"] }
 # Shell/Windowing
 winit = { version = "0.25", features = ["mint"] }
 
+# GUI
+[dependencies.egui]
+version = "0.14"
+features = ["mint"]
+git = "https://github.com/emilk/egui"
+branch = "egui_for_winit"
+
+[dependencies.egui_for_winit]
+version = "0.14"
+default-features = false
+features = ["webbrowser"]
+git = "https://github.com/emilk/egui"
+branch = "egui_for_winit"
+
 # Converting structs to uniforms with alignment
 [dependencies.crevice]
 version = "0.7"
@@ -74,12 +86,4 @@ version = "0.7"
 version = "0.12"
 #git = "https://github.com/hasenbanck/egui_wgpu_backend"
 #rev = "be10e8e89e3cfc2f92a2c21eee2928db28e28c7d"
-#path = "../egui_wgpu_backend"
-
-# Egui platform impl with winit
-[dependencies.egui_winit_platform]
-version = "0.10"
-features = ["webbrowser"]
-#git = "https://github.com/Gui-Yom/egui_winit_platform"
-#rev = "06f525497f9f61bbb7a4c9a78111d16bb2d695b4"
-#path = "../egui_winit_platform"
+path = "../egui_wgpu_backend"

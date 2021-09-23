@@ -52,7 +52,7 @@ fn main() -> Result<()> {
     let mut app = futures_executor::block_on(Nuance::init(window, pref_hp))?;
 
     event_loop.run(move |event, _, control_flow| match event {
-        Event::WindowEvent { .. } => {
+        Event::WindowEvent { event, .. } => {
             app.handle_event(event, control_flow);
         }
         Event::MainEventsCleared => {
