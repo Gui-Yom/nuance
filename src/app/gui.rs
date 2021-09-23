@@ -271,6 +271,21 @@ fn draw_slider(slider: &mut Slider, ui: &mut Ui) {
                     .max_decimals(3),
             );
         }
+        Slider::Uint {
+            name,
+            min,
+            max,
+            value,
+            ..
+        } => {
+            ui.label(name.as_str());
+            ui.add(
+                DragValue::new(value)
+                    .clamp_range(*min..=*max)
+                    .speed((*max - *min) as f32 / ui.available_width())
+                    .max_decimals(3),
+            );
+        }
         Slider::Vec2 { name, value, .. } => {
             ui.label(name.as_str());
             ui.spacing_mut().item_spacing.x = 2.0;

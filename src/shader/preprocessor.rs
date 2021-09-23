@@ -177,6 +177,42 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
                 default: init,
             });
         }
+        // To Slider::Uint
+        TypeSpecifierNonArray::UInt => {
+            let mut min = 0;
+            let mut max = 100;
+            let mut init = 0;
+
+            if let Some(TypeQualifier { qualifiers }) = field.qualifier.as_ref() {
+                if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) =
+                    qualifiers.first().unwrap()
+                {
+                    for qualifier in ids.iter() {
+                        if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
+                            match id.content.0.as_str() {
+                                "min" => min = param.as_ref().unwrap().coerce_const(),
+                                "max" => {
+                                    max = param.as_ref().unwrap().coerce_const();
+                                }
+                                "init" => {
+                                    init = param.as_ref().unwrap().coerce_const();
+                                }
+                                other => {
+                                    error!("Wrong slider setting : {}", other)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return Ok(Slider::Uint {
+                name,
+                min,
+                max,
+                value: init,
+                default: init,
+            });
+        }
         TypeSpecifierNonArray::Vec2 => {
             let mut init: Vector2<f32> = Vector2::from([0.0, 0.0]);
 
@@ -393,9 +429,12 @@ where
     }
 }
 
-impl CoerceConst<f64> for Expr {
+impl<T> CoerceConst<f64> for T
+where
+    T: Borrow<Expr>,
+{
     fn coerce_const(&self) -> f64 {
-        match self {
+        match self.borrow() {
             Expr::IntConst(value) => *value as f64,
             Expr::UIntConst(value) => *value as f64,
             Expr::FloatConst(value) => *value as f64,
@@ -407,9 +446,12 @@ impl CoerceConst<f64> for Expr {
     }
 }
 
-impl CoerceConst<i32> for Expr {
+impl<T> CoerceConst<i32> for T
+where
+    T: Borrow<Expr>,
+{
     fn coerce_const(&self) -> i32 {
-        match self {
+        match self.borrow() {
             Expr::IntConst(value) => *value,
             Expr::UIntConst(value) => *value as i32,
             Expr::FloatConst(value) => *value as i32,
@@ -421,9 +463,12 @@ impl CoerceConst<i32> for Expr {
     }
 }
 
-impl CoerceConst<u32> for Expr {
+impl<T> CoerceConst<u32> for T
+where
+    T: Borrow<Expr>,
+{
     fn coerce_const(&self) -> u32 {
-        match self {
+        match self.borrow() {
             Expr::IntConst(value) => *value as u32,
             Expr::UIntConst(value) => *value,
             Expr::FloatConst(value) => *value as u32,

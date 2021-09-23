@@ -41,6 +41,26 @@ pub enum Slider {
         value: f32,
         default: f32,
     },
+    Uint {
+        name: String,
+        value: u32,
+        min: u32,
+        max: u32,
+        default: u32,
+    },
+    /*
+    Int {
+        name: String,
+        value: i32,
+        min: i32,
+        max: i32,
+        default: i32,
+    },*/
+    Bool {
+        name: String,
+        value: u32,
+        default: u32,
+    },
     Vec2 {
         name: String,
         value: Vector2<f32>,
@@ -56,11 +76,13 @@ pub enum Slider {
         value: Vector3<f32>,
         default: Vector3<f32>,
     },
-    Bool {
+    /*
+    Enum {
         name: String,
         value: u32,
+        variants: Vec<String>,
         default: u32,
-    },
+    },*/
 }
 
 macro_rules! reset_impl {
@@ -77,7 +99,7 @@ macro_rules! reset_impl {
     )
 }
 
-reset_impl!(Slider, Float Vec2 Vec3 Color Bool);
+reset_impl!(Slider, Float Uint Bool Vec2 Vec3 Color);
 
 macro_rules! write_impl {
     ($align:ident, $enum:ident, $($item:ident )*) => {
@@ -93,7 +115,7 @@ macro_rules! write_impl {
     };
 }
 
-write_impl!(std140, Slider, Float Vec2 Vec3 Color Bool);
+write_impl!(std140, Slider, Float Uint Bool Vec2 Vec3 Color);
 
 /// Traverses the ast and extract useful data while converting the ast to valid glsl source
 #[derive(Default)]

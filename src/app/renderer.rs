@@ -351,12 +351,14 @@ impl Renderer {
         self.last_render_tex_bgl = temp.1;
         self.last_render_tex_bg = temp.2;
 
-        self.egui_rpass.update_egui_texture_from_wgpu_texture(
-            &self.device,
-            &self.render_tex,
-            FilterMode::Linear,
-            TextureId::User(0),
-        );
+        self.egui_rpass
+            .update_egui_texture_from_wgpu_texture(
+                &self.device,
+                &self.render_tex,
+                FilterMode::Linear,
+                TextureId::User(0),
+            )
+            .expect("Can't update canvas texture following resize");
     }
 
     pub fn resize(&mut self, size: Vector2<u32>) {
