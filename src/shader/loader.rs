@@ -170,14 +170,22 @@ impl ShaderLoader {
             }
             IncludeType::Standard => {
                 // The nuance standard header
-                if name == "Nuance" {
-                    const STD: &str = include_str!("stdlib.glsl");
-                    Ok(ResolvedInclude {
-                        resolved_name: "NUANCE_STD".to_string(),
-                        content: STD.to_string(),
-                    })
-                } else {
-                    Err("No standard include with this name !".to_string())
+                match name {
+                    "Nuance" => {
+                        const STD_NUANCE: &str = include_str!("stdlib.glsl");
+                        Ok(ResolvedInclude {
+                            resolved_name: "STD_NUANCE".to_owned(),
+                            content: STD_NUANCE.to_owned(),
+                        })
+                    }
+                    "noise" => {
+                        const STD_NOISE: &str = include_str!("noise.glsl");
+                        Ok(ResolvedInclude {
+                            resolved_name: "STD_NOISE".to_owned(),
+                            content: STD_NOISE.to_owned(),
+                        })
+                    }
+                    other => Err(format!("No standard include exist with name {}", other)),
                 }
             }
         }

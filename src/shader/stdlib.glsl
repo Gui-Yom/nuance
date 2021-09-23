@@ -2,6 +2,8 @@
 
 #version 460
 
+#include <noise>
+
 // Current fragment coordinates in pixel space
 #define fragCoord gl_FragCoord
 // Current fragment coordinates in normalized space
@@ -30,12 +32,6 @@ layout(push_constant) uniform Globals {
 };
 
 #define FIRST_RUN uFrame == 0
-
-// Generate a pseudo random value from a vec2
-// Source : https://thebookofshaders.com/10/
-float noise(vec2 st) {
-    return fract(sin(dot(st, vec2(12.9898, 78.233))) * 43758.5453123);
-}
 
 // Sample the last frame at the given normalized coordinates
 vec4 samplePreviousN(vec2 st) {
