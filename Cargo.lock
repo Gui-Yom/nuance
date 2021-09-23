@@ -656,6 +656,13 @@ checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 [[package]]
 name = "egui"
 version = "0.14.2"
+dependencies = [
+ "epaint 0.14.0",
+]
+
+[[package]]
+name = "egui"
+version = "0.14.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b403f29d592b5c2267279bfdf2cd3fe3ba0e7a8738d03203a6f1536e8e9d26bd"
 dependencies = [
@@ -663,19 +670,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "egui"
-version = "0.14.2"
-source = "git+https://github.com/emilk/egui?branch=egui_for_winit#8a2141eae46020df1ddf11af2c97b2675522bdfe"
-dependencies = [
- "epaint 0.14.0 (git+https://github.com/emilk/egui?branch=egui_for_winit)",
-]
-
-[[package]]
 name = "egui_for_winit"
 version = "0.14.0"
-source = "git+https://github.com/emilk/egui?branch=egui_for_winit#8a2141eae46020df1ddf11af2c97b2675522bdfe"
 dependencies = [
- "egui 0.14.2 (git+https://github.com/emilk/egui?branch=egui_for_winit)",
+ "egui 0.14.2",
  "epi",
  "webbrowser",
  "winit",
@@ -699,16 +697,15 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 [[package]]
 name = "emath"
 version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cca5179aa9d15128cebb79bb56dda73a79cc66b402056ff19a992e54b365e15c"
+dependencies = [
+ "mint",
+]
 
 [[package]]
 name = "emath"
 version = "0.14.0"
-source = "git+https://github.com/emilk/egui?branch=egui_for_winit#8a2141eae46020df1ddf11af2c97b2675522bdfe"
-dependencies = [
- "mint",
-]
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cca5179aa9d15128cebb79bb56dda73a79cc66b402056ff19a992e54b365e15c"
 
 [[package]]
 name = "ena"
@@ -717,6 +714,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7402b94a93c24e742487327a7cd839dc9d36fec9de9fb25b09f2dae459f36c3"
 dependencies = [
  "log",
+]
+
+[[package]]
+name = "epaint"
+version = "0.14.0"
+dependencies = [
+ "ab_glyph",
+ "ahash 0.7.4",
+ "atomic_refcell",
+ "emath 0.14.0",
+ "nohash-hasher",
 ]
 
 [[package]]
@@ -733,23 +741,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "epaint"
-version = "0.14.0"
-source = "git+https://github.com/emilk/egui?branch=egui_for_winit#8a2141eae46020df1ddf11af2c97b2675522bdfe"
-dependencies = [
- "ab_glyph",
- "ahash 0.7.4",
- "atomic_refcell",
- "emath 0.14.0 (git+https://github.com/emilk/egui?branch=egui_for_winit)",
- "nohash-hasher",
-]
-
-[[package]]
 name = "epi"
 version = "0.14.0"
-source = "git+https://github.com/emilk/egui?branch=egui_for_winit#8a2141eae46020df1ddf11af2c97b2675522bdfe"
 dependencies = [
- "egui 0.14.2 (git+https://github.com/emilk/egui?branch=egui_for_winit)",
+ "egui 0.14.2",
 ]
 
 [[package]]
@@ -1662,7 +1657,7 @@ version = "0.4.0"
 dependencies = [
  "anyhow",
  "crevice",
- "egui 0.14.2 (git+https://github.com/emilk/egui?branch=egui_for_winit)",
+ "egui 0.14.2",
  "egui_for_winit",
  "egui_wgpu_backend",
  "futures-executor",

@@ -46,6 +46,8 @@ impl Gui {
         let input = app.gui.egui_platform.take_egui_input(&app.window);
         app.gui.context.begin_frame(input);
 
+        //println!("{:?}", app.gui.context.available_rect());
+
         let mut framerate = (1.0 / app.settings.target_framerate.as_secs_f32()).round() as u32;
         //app.gui.ui_width as f32
         let context = app.gui.context.clone();

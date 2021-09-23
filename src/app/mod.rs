@@ -94,11 +94,11 @@ impl Nuance {
         let mut canvas_size = window_size;
         canvas_size.width -= (ui_width * scale_factor) as u32;
 
-        debug!(
+        println!(
             "window physical size : {:?}, scale factor : {}",
             window_size, scale_factor
         );
-        debug!("canvas size : {:?}", canvas_size);
+        println!("canvas size : {:?}", canvas_size);
 
         let renderer = Renderer::new(
             &window,
@@ -180,6 +180,7 @@ impl Nuance {
             },
             WindowEvent::Resized(size) => {
                 let mut size = size.into();
+                println!("Resizing {:?}", size);
                 self.renderer.resize(size);
                 size.x -= self.gui.ui_width;
                 self.renderer.resize_inner_canvas(size);
@@ -244,6 +245,7 @@ impl Nuance {
         let mut size: Vector2<u32> = self.window.inner_size().into();
         size.x -= self.gui.ui_width;
         if size != self.globals.resolution {
+            println!("Resizing canvas {:?}", size);
             self.renderer.resize_inner_canvas(size);
             self.globals.resolution = size;
         }

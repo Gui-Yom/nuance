@@ -52,7 +52,7 @@ puffin_egui = "0.7"
 # File dialogs
 rfd = "0.5"
 # GLSL compilation
-# I consider naga to be too damn much instable atm (plus it doesn't support includes)
+# I consider naga to be too damn much instable atm for GLSL
 shaderc = "0.7"
 # Logger implementation
 simplelog = "0.10"
@@ -65,15 +65,17 @@ winit = { version = "0.25", features = ["mint"] }
 [dependencies.egui]
 version = "0.14"
 features = ["mint"]
-git = "https://github.com/emilk/egui"
-branch = "egui_for_winit"
+path = "../egui/egui"
+#git = "https://github.com/emilk/egui"
+#branch = "egui_for_winit"
 
 [dependencies.egui_for_winit]
 version = "0.14"
 default-features = false
 features = ["webbrowser"]
-git = "https://github.com/emilk/egui"
-branch = "egui_for_winit"
+path = "../egui/egui_for_winit"
+#git = "https://github.com/emilk/egui"
+#branch = "egui_for_winit"
 
 # Converting structs to uniforms with alignment
 [dependencies.crevice]
