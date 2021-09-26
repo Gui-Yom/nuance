@@ -1,6 +1,6 @@
 use anyhow::Result;
+use env_logger::{Target, WriteStyle};
 use log::{info, LevelFilter};
-use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode};
 use winit::dpi::LogicalSize;
 use winit::event::Event;
 use winit::event_loop::EventLoop;
@@ -20,22 +20,20 @@ fn main() -> Result<()> {
 
     puffin::set_scopes_on(true);
 
-    TermLogger::init(
-        LevelFilter::Debug,
-        ConfigBuilder::new()
-            .set_target_level(LevelFilter::Error)
-            .add_filter_ignore_str("wgpu_core::device")
-            .add_filter_ignore_str("wgpu_core::hub")
-            .add_filter_ignore_str("wgpu_core::instance")
-            .add_filter_ignore_str("wgpu_core::present")
-            .add_filter_ignore_str("wgpu_hal::vulkan")
-            .add_filter_ignore_str("wgpu_hal::dx12")
-            .add_filter_ignore_str("naga::front")
-            .add_filter_ignore_str("naga::valid")
-            .build(),
-        TerminalMode::Stdout,
-        ColorChoice::Auto,
-    )?;
+    env_logger::builder()
+        .target(Target::Stdout)
+        .format_timestamp(None)
+        .write_style(WriteStyle::Always)
+        .filter_module("wgpu_core::instance", LevelFilter::Warn)
+        .filter_module("wgpu_core::device", LevelFilter::Warn)
+        .filter_module("wgpu_core::present", LevelFilter::Warn)
+        .filter_module("wgpu_core::hub", LevelFilter::Warn)
+        .filter_module("wgpu_hal::vulkan::instance", LevelFilter::Off)
+        .filter_module("wgpu_hal::vulkan::adapter", LevelFilter::Warn)
+        .filter_module("wgpu_hal::dx12::instance", LevelFilter::Error)
+        .filter_module("naga::front", LevelFilter::Warn)
+        .filter_module("naga::valid", LevelFilter::Warn)
+        .init();
 
     info!("Starting up !");
 

@@ -1,6 +1,6 @@
 [package]
 name = "nuance"
-version = "0.3.2"
+version = "0.4.0"
 authors = ["Guillaume Anthouard <guillaume.anthouard@hotmail.fr>"]
 edition = "2018"
 include = ["src/**/*", "LICENSE", "README.md"]
@@ -48,16 +48,16 @@ mint = "0.5"
 # Filesystem watcher
 notify = "4"
 # Profiling
-puffin = "0.8"
+puffin = "0.9"
 # Profiling ui
-puffin_egui = "0.7"
+puffin_egui = "0.8"
 # File dialogs
 rfd = "0.5"
 # GLSL compilation
 # I consider naga to be too damn much instable atm (plus it doesn't support includes)
 shaderc = "0.7"
 # Logger implementation
-simplelog = "0.10"
+env_logger = "0.9"
 # GPU API
 wgpu = { version = "0.10", features = ["spirv"] }
 # Shell/Windowing
