@@ -5,17 +5,18 @@ use std::time::Duration;
 use egui::special_emojis::GITHUB;
 use egui::{ClippedMesh, Color32, CtxRef, DragValue, Frame, Id, Texture, TextureId, Ui};
 use egui_wgpu_backend::ScreenDescriptor;
-use egui_winit_platform::Platform;
 use image::ImageFormat;
-use winit::event::Event;
+use winit::event::WindowEvent;
 
 use nuance::Slider;
 
 use crate::app::Nuance;
 
 pub struct Gui {
+    /// Egui context
+    context: CtxRef,
     /// Egui subsystem
-    pub egui_platform: Platform,
+    pub egui_platform: egui_for_winit::State,
     /// Logical size
     pub ui_width: u32,
     /// true if the profiling window should be open
@@ -24,8 +25,9 @@ pub struct Gui {
 }
 
 impl Gui {
-    pub fn new(egui_platform: Platform, ui_width: u32) -> Self {
+    pub fn new(egui_platform: egui_for_winit::State, ui_width: u32) -> Self {
         Self {
+            context: CtxRef::default(),
             egui_platform,
             ui_width,
             profiling_window: false,
@@ -33,25 +35,23 @@ impl Gui {
         }
     }
 
-    pub fn handle_event(&mut self, event: &Event<()>) {
-        self.egui_platform.handle_event(event);
-    }
-
-    pub fn update_time(&mut self, time: f64) {
-        self.egui_platform.update_time(time);
+    pub fn handle_event(&mut self, event: &WindowEvent) {
+        self.egui_platform.on_event(event);
     }
 
     pub fn render(app: &mut Nuance, window: &ScreenDescriptor) -> Vec<ClippedMesh> {
         // Profiler
         puffin::profile_scope!("create gui");
 
-        app.gui.context().set_pixels_per_point(window.scale_factor);
+        let input = app.gui.egui_platform.take_egui_input(&app.window);
+        app.gui.context.begin_frame(input);
 
-        app.gui.egui_platform.begin_frame();
+        //println!("{:?}", app.gui.context.available_rect());
 
         let mut framerate = (1.0 / app.settings.target_framerate.as_secs_f32()).round() as u32;
         //app.gui.ui_width as f32
-        let side_panel = egui::SidePanel::left("params").show(&app.gui.context(), |ui| {
+        let context = app.gui.context.clone();
+        let side_panel = egui::SidePanel::left("params").show(&context, |ui| {
             ui.label(format!(
                 "resolution : {:.0}x{:.0} px",
                 app.globals.resolution.x, app.globals.resolution.y
@@ -183,7 +183,7 @@ impl Gui {
 
         egui::CentralPanel::default()
             .frame(Frame::none())
-            .show(&app.gui.context(), |ui| {
+            .show(&app.gui.context, |ui| {
                 ui.image(
                     TextureId::User(0),
                     egui::Vec2::new(
@@ -203,8 +203,7 @@ impl Gui {
             .open(&mut app.gui.export_window)
             .collapsible(false)
             .resizable(false)
-            .scroll(false)
-            .show(&app.gui.egui_platform.context(), |ui| {
+            .show(&app.gui.context, |ui| {
                 egui::ComboBox::from_label("format")
                     .selected_text(format_ref.extensions_str()[0])
                     .show_ui(ui, |ui| {
@@ -233,24 +232,24 @@ impl Gui {
             app.ask_to_export();
         }
 
+        /*
         if app.gui.profiling_window {
-            app.gui.profiling_window = puffin_egui::profiler_window(&app.gui.context());
-        }
+            app.gui.profiling_window = puffin_egui::profiler_window(&context);
+        }*/
 
         // End the UI frame. We could now handle the output and draw the UI with the backend.
-        let (_, paint_commands) = app.gui.egui_platform.end_frame(Some(&app.window));
+        let (output, shapes) = app.gui.context.end_frame();
+        app.gui
+            .egui_platform
+            .handle_output(&app.window, &app.gui.context, output);
 
         app.settings.target_framerate = Duration::from_secs_f32(1.0 / framerate as f32);
 
-        app.gui.context().tessellate(paint_commands)
-    }
-
-    pub fn context(&self) -> CtxRef {
-        self.egui_platform.context()
+        app.gui.context.tessellate(shapes)
     }
 
     pub fn texture(&self) -> Arc<Texture> {
-        self.egui_platform.context().texture()
+        self.context.texture()
     }
 }
 
