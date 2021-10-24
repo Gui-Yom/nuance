@@ -2,7 +2,7 @@
 name = "nuance"
 version = "0.4.0"
 authors = ["Guillaume Anthouard <guillaume.anthouard@hotmail.fr>"]
-edition = "2018"
+edition = "2021"
 include = ["src/**/*", "LICENSE", "README.md"]
 description = "A tool to run your shaders on the gpu. Also a good demo application for wgpu-rs."
 homepage = "https://github.com/Gui-Yom/nuance"
@@ -11,7 +11,6 @@ license = "Apache-2.0"
 readme = "README.md"
 keywords = ["shaders", "glsl", "graphics", "visualization", "wgpu"]
 categories = ["graphics", "rendering", "visualization"]
-resolver = "2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -33,7 +32,8 @@ opt-level = 3
 # Error types
 anyhow = "1"
 # GUI
-egui = { version = "0.14", features = ["mint"] }
+egui = { version = "0.15", features = ["mint"] }
+egui-winit = "0.15"
 # Async runtime
 futures-executor = "0.3"
 # GLSL parser
@@ -48,9 +48,9 @@ mint = "0.5"
 # Filesystem watcher
 notify = "4"
 # Profiling
-puffin = "0.9"
+puffin = "0.10"
 # Profiling ui
-puffin_egui = "0.8"
+puffin_egui = "0.9"
 # File dialogs
 rfd = "0.5"
 # GLSL compilation
@@ -59,7 +59,7 @@ shaderc = "0.7"
 # Logger implementation
 env_logger = "0.9"
 # GPU API
-wgpu = { version = "0.10", features = ["spirv"] }
+wgpu = { version = "0.11", features = ["spirv"] }
 # Shell/Windowing
 winit = { version = "0.25", features = ["mint"] }
 
@@ -71,15 +71,15 @@ version = "0.7"
 
 # Render pass for egui with wgpu
 [dependencies.egui_wgpu_backend]
-version = "0.12"
+version = "0.13"
 #git = "https://github.com/hasenbanck/egui_wgpu_backend"
 #rev = "be10e8e89e3cfc2f92a2c21eee2928db28e28c7d"
 #path = "../egui_wgpu_backend"
 
 # Egui platform impl with winit
-[dependencies.egui_winit_platform]
-version = "0.10"
-features = ["webbrowser"]
+#[dependencies.egui_winit_platform]
+#version = "0.10"
+#features = ["webbrowser"]
 #git = "https://github.com/Gui-Yom/egui_winit_platform"
 #rev = "06f525497f9f61bbb7a4c9a78111d16bb2d695b4"
 #path = "../egui_winit_platform"
