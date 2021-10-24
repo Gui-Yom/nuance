@@ -16,7 +16,7 @@ pub struct Gui {
     /// Egui context
     context: CtxRef,
     /// Egui subsystem
-    pub egui_platform: egui_for_winit::State,
+    pub egui_platform: egui_winit::State,
     /// Logical size
     pub ui_width: u32,
     /// true if the profiling window should be open
@@ -25,7 +25,7 @@ pub struct Gui {
 }
 
 impl Gui {
-    pub fn new(egui_platform: egui_for_winit::State, ui_width: u32) -> Self {
+    pub fn new(egui_platform: egui_winit::State, ui_width: u32) -> Self {
         Self {
             context: CtxRef::default(),
             egui_platform,
@@ -36,7 +36,7 @@ impl Gui {
     }
 
     pub fn handle_event(&mut self, event: &WindowEvent) {
-        self.egui_platform.on_event(event);
+        self.egui_platform.on_event(&self.context, event);
     }
 
     pub fn render(app: &mut Nuance, window: &ScreenDescriptor) -> Vec<ClippedMesh> {

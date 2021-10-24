@@ -75,11 +75,3 @@ version = "0.13"
 #git = "https://github.com/hasenbanck/egui_wgpu_backend"
 #rev = "be10e8e89e3cfc2f92a2c21eee2928db28e28c7d"
 #path = "../egui_wgpu_backend"
-
-# Egui platform impl with winit
-#[dependencies.egui_winit_platform]
-#version = "0.10"
-#features = ["webbrowser"]
-#git = "https://github.com/Gui-Yom/egui_winit_platform"
-#rev = "06f525497f9f61bbb7a4c9a78111d16bb2d695b4"
-#path = "../egui_winit_platform"

@@ -110,7 +110,7 @@ impl Nuance {
 
         let (tx, rx) = std::sync::mpsc::channel();
 
-        let platform = egui_for_winit::State::new(&window);
+        let platform = egui_winit::State::new(&window);
 
         Ok(Self {
             window,

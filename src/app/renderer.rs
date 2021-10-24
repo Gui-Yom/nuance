@@ -69,6 +69,7 @@ impl Renderer {
             .request_adapter(&RequestAdapterOptions {
                 // Use an integrated gpu if possible
                 power_preference,
+                force_fallback_adapter: false,
                 compatible_surface: Some(&surface),
             })
             .await
@@ -175,8 +176,11 @@ impl Renderer {
         let mut _profiler_scope = ProfilerScope::new("init", puffin::short_file_name(file!()), "");
 
         // We use double buffering, so select the output texture
-        let frame = self.surface.get_current_frame()?.output;
+        let frame = self.surface.get_current_texture()?;
+
         let view_desc = TextureViewDescriptor::default();
+
+        let view = frame.texture.create_view(&view_desc);
 
         // This pack a set of render passes for the gpu to execute
         let mut encoder = self
@@ -212,13 +216,8 @@ impl Renderer {
                 .update_buffers(&self.device, &self.queue, gui.1, screen_desc);
 
             // Record all render passes.
-            self.egui_rpass.execute(
-                &mut encoder,
-                &frame.texture.create_view(&view_desc),
-                gui.1,
-                screen_desc,
-                Some(Color::BLACK),
-            )?;
+            self.egui_rpass
+                .execute(&mut encoder, &view, gui.1, screen_desc, Some(Color::BLACK))?;
         }
 
         if should_render {
@@ -246,6 +245,7 @@ impl Renderer {
 
         // Launch !
         self.queue.submit(Some(encoder.finish()));
+        frame.present();
         Ok(())
     }
 
