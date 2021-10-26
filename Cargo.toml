@@ -50,7 +50,7 @@ notify = "4"
 # Profiling
 puffin = "0.10"
 # Profiling ui
-puffin_egui = "0.9"
+puffin_egui = { version = "0.9", optional = true }
 # File dialogs
 rfd = "0.5"
 # GLSL compilation
@@ -65,13 +65,13 @@ winit = { version = "0.25", features = ["mint"] }
 
 # Converting structs to uniforms with alignment
 [dependencies.crevice]
-version = "0.7"
+version = "0.8"
 #git = "https://github.com/LPGhatguy/crevice"
 #rev = "78165c1bdb22c699b2523cdfa4bd13dd60ced79f"
 
 # Render pass for egui with wgpu
 [dependencies.egui_wgpu_backend]
 version = "0.13"
-#git = "https://github.com/hasenbanck/egui_wgpu_backend"
-#rev = "be10e8e89e3cfc2f92a2c21eee2928db28e28c7d"
+git = "https://github.com/hasenbanck/egui_wgpu_backend"
+rev = "961125e7bd2c71c5ead1d61a7ca7ffa8c0d17f48"
 #path = "../egui_wgpu_backend"

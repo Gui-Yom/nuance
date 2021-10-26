@@ -411,9 +411,9 @@ dependencies = [
 
 [[package]]
 name = "crevice"
-version = "0.7.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0388841c63d751d6444f5ebcf55bc98dde119e2a6547e7acda457cda3b36c55a"
+checksum = "2d4f6c6d647171f93b5f65f1250ea929c7189b4330e9364be147d4571ae01f8f"
 dependencies = [
  "bytemuck",
  "crevice-derive",
@@ -422,9 +422,9 @@ dependencies = [
 
 [[package]]
 name = "crevice-derive"
-version = "0.7.1"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d77417e514ad5c6d9ceb5e193c738db439a394ee7e602285feffc8dfc9bda7d0"
+checksum = "6d88c3459fdadc1206f8ea5c4746547c92cbbf8ec9e6d91b2242847d5e00fde4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -719,8 +719,7 @@ dependencies = [
 [[package]]
 name = "egui_wgpu_backend"
 version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10b5ce7d92c1efed2572c77894a5d21f7b78fb0095c4f1ea4a69378560972991"
+source = "git+https://github.com/hasenbanck/egui_wgpu_backend?rev=961125e7bd2c71c5ead1d61a7ca7ffa8c0d17f48#961125e7bd2c71c5ead1d61a7ca7ffa8c0d17f48"
 dependencies = [
  "bytemuck",
  "epi",
@@ -798,11 +797,11 @@ dependencies = [
 
 [[package]]
 name = "epi"
-version = "0.14.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3c033c9b4d921566a98b8831b63af5ba2a0ad7ffa62d22b897698f36c22a28a"
+checksum = "3f5e4e08127f9b86e2c450c96a3032764b63546eb170c2fc54684dc70ff3fc82"
 dependencies = [
- "egui 0.14.2",
+ "egui 0.15.0",
 ]
 
 [[package]]

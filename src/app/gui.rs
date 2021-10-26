@@ -232,10 +232,10 @@ impl Gui {
             app.ask_to_export();
         }
 
-        /*
+        #[cfg(feature = "puffin_egui")]
         if app.gui.profiling_window {
             app.gui.profiling_window = puffin_egui::profiler_window(&context);
-        }*/
+        }
 
         // End the UI frame. We could now handle the output and draw the UI with the backend.
         let (output, shapes) = app.gui.context.end_frame();
