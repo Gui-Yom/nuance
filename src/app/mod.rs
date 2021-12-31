@@ -94,11 +94,11 @@ impl Nuance {
         let mut canvas_size = window_size;
         canvas_size.width -= (ui_width * scale_factor) as u32;
 
-        println!(
+        debug!(
             "window physical size : {:?}, scale factor : {}",
             window_size, scale_factor
         );
-        println!("canvas size : {:?}", canvas_size);
+        debug!("canvas size : {:?}", canvas_size);
 
         let renderer = Renderer::new(
             &window,
@@ -110,7 +110,7 @@ impl Nuance {
 
         let (tx, rx) = std::sync::mpsc::channel();
 
-        let platform = egui_winit::State::new(&window);
+        let platform = egui_winit::State::new(8192, &window);
 
         Ok(Self {
             window,
@@ -265,13 +265,19 @@ impl Nuance {
         };
 
         // Generate the GUI
-        let paint_jobs = Gui::render(self, &screen_desc);
+        let (paint_jobs, _, textures_delta) = Gui::render(self, &screen_desc);
+
+        // We use continuous rendering only
+        /*
+        if needs_repaint {
+            self.window.request_redraw();
+        }*/
 
         // Render the UI
         self.renderer
             .render(
                 &screen_desc,
-                (&self.gui.texture(), &paint_jobs),
+                (&paint_jobs, &textures_delta),
                 &self
                     .shader_metadata()
                     .map(|it| it.params_buffer())

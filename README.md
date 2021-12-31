@@ -6,7 +6,8 @@
 A tool to run your shaders on the gpu.
 
 ![screenshot](screenshot.png)
-*Loaded with example shader : `shaders/demo/foamy_water.frag` Made by k-mouse (2016-11-23) https://www.shadertoy.com/view/llcXW7*
+*Loaded with example shader : `shaders/demo/foamy_water.frag` Made by k-mouse (
+2016-11-23) https://www.shadertoy.com/view/llcXW7*
 
 ## Installation
 
@@ -69,9 +70,9 @@ included here for demonstration purposes. They are the property of their respect
 
 ## Development
 
-We use `shaderc-rs` to compile GLSL shaders to spirv. It is therefore highly recommended to install the
-vulkan sdk and set the `VULKAN_SDK` env var in order to find the prebuilt shaderc libraries. If not,
-shaderc will download and build the vulkan libraries from source, which takes about 90% of this
+We use `shaderc-rs` to compile GLSL shaders to spirv. It is therefore highly recommended to install
+the vulkan sdk and set the `VULKAN_SDK` env var in order to find the prebuilt shaderc libraries. If
+not, shaderc will download and build the vulkan libraries from source, which takes about 90% of this
 entire application build time.
 
 ## TODO

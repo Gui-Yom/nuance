@@ -98,9 +98,9 @@ impl ShaderRenderPass {
                 strip_index_format: None,
                 front_face: FrontFace::Ccw,
                 cull_mode: None,
-                clamp_depth: false,
                 polygon_mode: PolygonMode::Fill,
                 conservative: false,
+                unclipped_depth: false,
             },
             depth_stencil: None,
             multisample: MultisampleState {
@@ -117,6 +117,7 @@ impl ShaderRenderPass {
                     blend: None,
                 }],
             }),
+            multiview: None,
         });
 
         Self {

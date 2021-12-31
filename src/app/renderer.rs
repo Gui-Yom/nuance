@@ -2,7 +2,7 @@ use std::mem;
 use std::num::NonZeroU32;
 
 use anyhow::{Context, Result};
-use egui::{ClippedMesh, TextureId};
+use egui::{ClippedMesh, TextureId, TexturesDelta};
 use egui_wgpu_backend::ScreenDescriptor;
 use log::{debug, error, info};
 use mint::Vector2;
@@ -120,7 +120,20 @@ impl Renderer {
         // The egui renderer in its own render pass
         let mut egui_rpass = egui_wgpu_backend::RenderPass::new(&device, format, 1);
         // egui will need our render texture
-        egui_rpass.egui_texture_from_wgpu_texture(&device, &render_tex, FilterMode::Linear);
+        egui_rpass.egui_texture_from_wgpu_texture(
+            &device,
+            &render_tex.create_view(&TextureViewDescriptor {
+                label: None,
+                format: Some(format),
+                dimension: Some(TextureViewDimension::D2),
+                aspect: TextureAspect::All,
+                base_mip_level: 0,
+                mip_level_count: None,
+                base_array_layer: 0,
+                array_layer_count: None,
+            }),
+            FilterMode::Nearest,
+        );
 
         Ok(Self {
             instance,
@@ -166,7 +179,7 @@ impl Renderer {
     pub fn render(
         &mut self,
         screen_desc: &ScreenDescriptor,
-        gui: (&egui::Texture, &[ClippedMesh]),
+        gui: (&[ClippedMesh], &TexturesDelta),
         params_buffer: &[u8],
         push_constants: &[u8],
         should_render: bool,
@@ -209,15 +222,15 @@ impl Renderer {
             puffin::profile_scope!("egui render pass");
 
             self.egui_rpass
-                .update_texture(&self.device, &self.queue, gui.0);
+                .add_textures(&self.device, &self.queue, gui.1)?;
             self.egui_rpass
-                .update_user_textures(&self.device, &self.queue);
-            self.egui_rpass
-                .update_buffers(&self.device, &self.queue, gui.1, screen_desc);
+                .update_buffers(&self.device, &self.queue, gui.0, screen_desc);
 
             // Record all render passes.
             self.egui_rpass
-                .execute(&mut encoder, &view, gui.1, screen_desc, Some(Color::BLACK))?;
+                .execute(&mut encoder, &view, gui.0, screen_desc, Some(Color::BLACK))?;
+
+            self.egui_rpass.remove_textures(gui.1.clone())?;
         }
 
         if should_render {
@@ -354,7 +367,16 @@ impl Renderer {
         self.egui_rpass
             .update_egui_texture_from_wgpu_texture(
                 &self.device,
-                &self.render_tex,
+                &self.render_tex.create_view(&TextureViewDescriptor {
+                    label: None,
+                    format: Some(self.format),
+                    dimension: Some(TextureViewDimension::D2),
+                    aspect: TextureAspect::All,
+                    base_mip_level: 0,
+                    mip_level_count: None,
+                    base_array_layer: 0,
+                    array_layer_count: None,
+                }),
                 FilterMode::Linear,
                 TextureId::User(0),
             )
@@ -438,8 +460,7 @@ impl Renderer {
                     binding: 1,
                     visibility: ShaderStages::FRAGMENT,
                     ty: BindingType::Sampler {
-                        filtering: false,
-                        comparison: false,
+                        0: SamplerBindingType::NonFiltering,
                     },
                     count: None,
                 },

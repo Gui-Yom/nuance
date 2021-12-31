@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 use anyhow::{anyhow, Result};
-use log::warn;
+use log::{debug, warn};
 use shaderc::{
     CompileOptions, Compiler, EnvVersion, GlslProfile, IncludeType, OptimizationLevel,
     ResolvedInclude, ShaderKind, SourceLanguage, TargetEnv,
@@ -61,14 +61,9 @@ impl ShaderLoader {
             Some("glsl") | Some("frag") => {
                 // Preprocess glsl to extract what we need
                 let mut source = fs::read_to_string(path)?;
-                let metadata = if let Ok((metadata, new)) = preprocessor::extract(&source) {
-                    // We found params and transpiled the code
-                    source = new;
-                    Some(metadata)
-                } else {
-                    // No params extracted and source isn't modified
-                    None
-                };
+                debug!("{}", &source);
+                let (metadata, new) = preprocessor::extract(&source)?;
+                source = new;
 
                 self.compile_shader(path.to_str().unwrap(), &source, "main")
                     .map(|it| {
@@ -76,7 +71,7 @@ impl ShaderLoader {
                             Shader {
                                 main: path.to_path_buf(),
                                 sources: vec![path.to_path_buf()],
-                                metadata,
+                                metadata: Some(metadata),
                             },
                             it,
                         )

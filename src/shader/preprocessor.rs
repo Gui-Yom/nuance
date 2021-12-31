@@ -5,32 +5,41 @@ use std::borrow::Borrow;
 
 use anyhow::{anyhow, Result};
 use glsl_lang::ast::{
-    FunIdentifier, PreprocessorDefine, TypeQualifier, TypeSpecifier, TypeSpecifierNonArray,
+    BlockData, ExprData, FunIdentifierData, IdentifierData, LayoutQualifierData,
+    LayoutQualifierSpecData, Node, PreprocessorDefineData, SmolStr, StructFieldSpecifierData,
+    TranslationUnit, TypeQualifierData, TypeQualifierSpecData, TypeSpecifierData,
+    TypeSpecifierNonArrayData,
 };
-use glsl_lang::{
-    ast::{
-        Block, Expr, Identifier, IdentifierData, LayoutQualifier, LayoutQualifierSpec, SmolStr,
-        StructFieldSpecifier, TranslationUnit, TypeQualifierSpec,
-    },
-    parse::{Parsable, ParseOptions},
-    transpiler::glsl::FormattingState,
-    visitor::{HostMut, Visit, VisitorMut},
-};
-use log::error;
+use glsl_lang::parse::{DefaultLexer, Parse, ParseBuilder, ParseContext, ParseOptions};
+use glsl_lang::transpiler::glsl::{show_translation_unit, FormattingState};
+use glsl_lang::visitor::{HostMut, Visit, VisitorMut};
+use lang_util::FileId;
+use log::{debug, error};
 use mint::{Vector2, Vector3};
 
 use crate::{ShaderMetadata, Slider};
 
 impl VisitorMut for ShaderMetadata {
-    fn visit_block(&mut self, block: &mut Block) -> Visit {
-        if let Some(TypeQualifierSpec::Layout(layout)) = block.qualifier.qualifiers.first() {
-            if let Some(LayoutQualifierSpec::Identifier(id, _)) = layout.ids.first() {
+    fn visit_block(&mut self, block: &mut Node<BlockData>) -> Visit {
+        let block = &mut block.content;
+        // Find a params block which is a GLSL uniform block with the layout(params) qualifier
+        if let Some(TypeQualifierSpecData::Layout(layout)) = block
+            .qualifier
+            .content
+            .qualifiers
+            .first()
+            .map(|x| &x.content)
+        {
+            if let Some(LayoutQualifierSpecData::Identifier(id, _)) =
+                layout.content.ids.first().map(|x| &x.content)
+            {
                 if id.content.0 == "params" {
                     // We got the block we searched for
                     for field in block.fields.iter_mut() {
-                        if let Ok(slider) = create_slider_from_field(field) {
+                        if let Ok(slider) = create_slider_from_field(&field.content) {
                             self.sliders.push(slider);
-                            convert_field(field);
+                            // Remove the layout(min=?, max=?) annotation on params block fields
+                            field.content.qualifier = None;
                         } else {
                             panic!("Invalid field");
                         }
@@ -42,8 +51,8 @@ impl VisitorMut for ShaderMetadata {
         Visit::Parent
     }
 
-    fn visit_preprocessor_define(&mut self, define: &mut PreprocessorDefine) -> Visit {
-        if let PreprocessorDefine::ObjectLike { ident, .. } = define {
+    fn visit_preprocessor_define(&mut self, define: &mut Node<PreprocessorDefineData>) -> Visit {
+        if let PreprocessorDefineData::ObjectLike { ident, .. } = &define.content {
             if ident.content.0.as_str() == "NUANCE_STILL_IMAGE" {
                 self.still_image = true;
             }
@@ -51,9 +60,9 @@ impl VisitorMut for ShaderMetadata {
         Visit::Parent
     }
 
-    fn visit_expr(&mut self, expr: &mut Expr) -> Visit {
-        if let Expr::Dot(expr2, ident1) = expr {
-            if let Expr::Variable(ident0) = expr2.as_ref() {
+    fn visit_expr(&mut self, expr: &mut Node<ExprData>) -> Visit {
+        if let ExprData::Dot(expr2, ident1) = &mut expr.content {
+            if let ExprData::Variable(ident0) = &expr2.as_ref().content {
                 let slider_name = ident0.content.0.as_str();
                 for slider in self.sliders.iter() {
                     match slider {
@@ -65,13 +74,16 @@ impl VisitorMut for ShaderMetadata {
                             ..
                         } => {
                             if name == slider_name {
-                                *expr = Expr::FloatConst(match ident1.content.0.as_str() {
-                                    "max" => *max,
-                                    "min" => *min,
-                                    "init" => *default,
-                                    // No . accessors on a float value
-                                    other => panic!("No such property '{}' on float param", other),
-                                });
+                                expr.content =
+                                    ExprData::FloatConst(match ident1.content.0.as_str() {
+                                        "max" => *max,
+                                        "min" => *min,
+                                        "init" => *default,
+                                        // No . accessors on a float value
+                                        other => {
+                                            panic!("No such property '{}' on float param", other)
+                                        }
+                                    });
                                 return Visit::Parent;
                             }
                         }
@@ -79,15 +91,19 @@ impl VisitorMut for ShaderMetadata {
                             if name == slider_name {
                                 match ident1.content.0.as_str() {
                                     "init" => {
-                                        *expr = Expr::FunCall(
-                                            FunIdentifier::TypeSpecifier(TypeSpecifier {
-                                                ty: TypeSpecifierNonArray::Vec2,
-                                                array_specifier: None,
-                                            }),
+                                        expr.content = ExprData::FunCall(
+                                            FunIdentifierData::TypeSpecifier(Box::new(
+                                                TypeSpecifierData {
+                                                    ty: TypeSpecifierNonArrayData::Vec2.into(),
+                                                    array_specifier: None,
+                                                }
+                                                .into(),
+                                            ))
+                                            .into(),
                                             default
                                                 .as_ref()
                                                 .iter()
-                                                .map(|it| Expr::FloatConst(*it))
+                                                .map(|it| ExprData::FloatConst(*it).into())
                                                 .collect(),
                                         );
                                     }
@@ -100,15 +116,19 @@ impl VisitorMut for ShaderMetadata {
                             if name == slider_name {
                                 match ident1.content.0.as_str() {
                                     "init" => {
-                                        *expr = Expr::FunCall(
-                                            FunIdentifier::TypeSpecifier(TypeSpecifier {
-                                                ty: TypeSpecifierNonArray::Vec3,
-                                                array_specifier: None,
-                                            }),
+                                        expr.content = ExprData::FunCall(
+                                            FunIdentifierData::TypeSpecifier(Box::new(
+                                                TypeSpecifierData {
+                                                    ty: TypeSpecifierNonArrayData::Vec3.into(),
+                                                    array_specifier: None,
+                                                }
+                                                .into(),
+                                            ))
+                                            .into(),
                                             default
                                                 .as_ref()
                                                 .iter()
-                                                .map(|it| Expr::FloatConst(*it))
+                                                .map(|it| ExprData::FloatConst(*it).into())
                                                 .collect(),
                                         );
                                     }
@@ -126,11 +146,45 @@ impl VisitorMut for ShaderMetadata {
     }
 }
 
-pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> {
+fn process_layout_qualifier_on_field(
+    field: &StructFieldSpecifierData,
+    mut consumer: impl FnMut(&str, &Node<ExprData>),
+) {
+    // Does the field has any qualifiers ?
+    if let Some(TypeQualifierData { qualifiers }) = field.qualifier.as_ref().map(|x| &x.content) {
+        qualifiers
+            .iter()
+            .map(|x| &x.content)
+            .filter_map(|x| match x {
+                // Extract key value pairs from layout qualifiers
+                TypeQualifierSpecData::Layout(Node {
+                    content: LayoutQualifierData { ids },
+                    span: _,
+                }) => Some(ids),
+                _ => None,
+            })
+            .flatten()
+            .for_each(|pair| {
+                if let LayoutQualifierSpecData::Identifier(
+                    Node {
+                        content: IdentifierData(key),
+                        span: _,
+                    },
+                    Some(value),
+                ) = &pair.content
+                {
+                    consumer(key.as_str(), value.as_ref());
+                }
+            });
+    }
+}
+
+pub fn create_slider_from_field(field: &StructFieldSpecifierData) -> Result<Slider> {
     let name = field
         .identifiers
         .first()
         .unwrap()
+        .content
         .ident
         .content
         .0
@@ -138,37 +192,27 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
 
     //debug!("{:#?}", field);
 
-    match field.ty.ty {
+    match field.ty.content.ty.content {
         // To Slider::Float
-        TypeSpecifierNonArray::Float => {
+        TypeSpecifierNonArrayData::Float => {
             let mut min = 0.0;
             let mut max = 1.0;
             let mut init = 0.0;
 
-            if let Some(TypeQualifier { qualifiers }) = field.qualifier.as_ref() {
-                if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) =
-                    qualifiers.first().unwrap()
-                {
-                    for qualifier in ids.iter() {
-                        if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
-                            match id.content.0.as_str() {
-                                "min" => {
-                                    min = param.as_ref().unwrap().coerce_const();
-                                }
-                                "max" => {
-                                    max = param.as_ref().unwrap().coerce_const();
-                                }
-                                "init" => {
-                                    init = param.as_ref().unwrap().coerce_const();
-                                }
-                                other => {
-                                    error!("Wrong slider setting : {}", other)
-                                }
-                            }
-                        }
-                    }
+            process_layout_qualifier_on_field(field, |key, value| match key {
+                "min" => {
+                    min = value.coerce_const();
                 }
-            }
+                "max" => {
+                    max = value.coerce_const();
+                }
+                "init" => {
+                    init = value.coerce_const();
+                }
+                other => {
+                    error!("Wrong slider setting : {}", other)
+                }
+            });
             return Ok(Slider::Float {
                 name,
                 min,
@@ -178,33 +222,24 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
             });
         }
         // To Slider::Uint
-        TypeSpecifierNonArray::UInt => {
+        TypeSpecifierNonArrayData::UInt => {
             let mut min = 0;
             let mut max = 100;
             let mut init = 0;
 
-            if let Some(TypeQualifier { qualifiers }) = field.qualifier.as_ref() {
-                if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) =
-                    qualifiers.first().unwrap()
-                {
-                    for qualifier in ids.iter() {
-                        if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
-                            match id.content.0.as_str() {
-                                "min" => min = param.as_ref().unwrap().coerce_const(),
-                                "max" => {
-                                    max = param.as_ref().unwrap().coerce_const();
-                                }
-                                "init" => {
-                                    init = param.as_ref().unwrap().coerce_const();
-                                }
-                                other => {
-                                    error!("Wrong slider setting : {}", other)
-                                }
-                            }
-                        }
-                    }
+            process_layout_qualifier_on_field(field, |key, value| match key {
+                "min" => min = value.coerce_const(),
+                "max" => {
+                    max = value.coerce_const();
                 }
-            }
+                "init" => {
+                    init = value.coerce_const();
+                }
+                other => {
+                    error!("Wrong slider setting : {}", other)
+                }
+            });
+
             return Ok(Slider::Uint {
                 name,
                 min,
@@ -213,42 +248,34 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
                 default: init,
             });
         }
-        TypeSpecifierNonArray::Vec2 => {
+        TypeSpecifierNonArrayData::Vec2 => {
             let mut init: Vector2<f32> = Vector2::from([0.0, 0.0]);
 
-            if let Some(TypeQualifier { qualifiers }) = field.qualifier.as_ref() {
-                if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) =
-                    qualifiers.first().unwrap()
-                {
-                    for qualifier in ids.iter() {
-                        if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
-                            match id.content.0.as_str() {
-                                "init" => {
-                                    if let Some(Expr::FunCall(
-                                        FunIdentifier::TypeSpecifier(TypeSpecifier { ty, .. }),
-                                        params,
-                                    )) = param.as_deref()
-                                    {
-                                        if *ty == TypeSpecifierNonArray::Vec2 && params.len() == 2 {
-                                            init = Vector2::from([
-                                                params[0].coerce_const(),
-                                                params[1].coerce_const(),
-                                            ]);
-                                            continue;
-                                        }
-                                        error!("Invalid initializer !");
-                                    }
-                                }
-                                other => {
-                                    error!("Unsupported setting : {}", other)
-                                }
-                            }
+            process_layout_qualifier_on_field(field, |key, value| match key {
+                "init" => {
+                    if let ExprData::FunCall(
+                        Node {
+                            content: FunIdentifierData::TypeSpecifier(ty_spec),
+                            span: _,
+                        },
+                        params,
+                    ) = &value.content
+                    {
+                        if ty_spec.content.ty.content == TypeSpecifierNonArrayData::Vec2
+                            && params.len() == 2
+                        {
+                            init =
+                                Vector2::from([params[0].coerce_const(), params[1].coerce_const()]);
                         } else {
-                            error!("Invalid qualifier shared");
+                            error!("Invalid initializer ! Only constant arguments are accepted.");
                         }
                     }
                 }
-            }
+                other => {
+                    error!("Unsupported setting : {}", other)
+                }
+            });
+
             return Ok(Slider::Vec2 {
                 name,
                 value: init,
@@ -256,47 +283,40 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
             });
         }
         // To Slider::Color if color layout qualifier is set
-        TypeSpecifierNonArray::Vec3 => {
+        TypeSpecifierNonArrayData::Vec3 => {
             let mut init: Vector3<f32> = Vector3::from([0.0, 0.0, 0.0]);
             let mut color = false;
 
-            if let Some(TypeQualifier { qualifiers }) = field.qualifier.as_ref() {
-                if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) =
-                    qualifiers.first().unwrap()
-                {
-                    for qualifier in ids.iter() {
-                        if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
-                            match id.content.0.as_str() {
-                                "color" => {
-                                    color = true;
-                                }
-                                "init" => {
-                                    if let Some(Expr::FunCall(
-                                        FunIdentifier::TypeSpecifier(TypeSpecifier { ty, .. }),
-                                        params,
-                                    )) = param.as_deref()
-                                    {
-                                        if *ty == TypeSpecifierNonArray::Vec3 && params.len() == 3 {
-                                            init = Vector3::from([
-                                                params[0].coerce_const(),
-                                                params[1].coerce_const(),
-                                                params[2].coerce_const(),
-                                            ]);
-                                            continue;
-                                        }
-                                        error!("Invalid initializer !");
-                                    }
-                                }
-                                other => {
-                                    error!("Unsupported setting : {}", other)
-                                }
-                            }
+            process_layout_qualifier_on_field(field, |key, value| match key {
+                "color" => {
+                    color = true;
+                }
+                "init" => {
+                    if let ExprData::FunCall(
+                        Node {
+                            content: FunIdentifierData::TypeSpecifier(ty_spec),
+                            span: _,
+                        },
+                        params,
+                    ) = &value.content
+                    {
+                        if ty_spec.content.ty.content == TypeSpecifierNonArrayData::Vec3
+                            && params.len() == 3
+                        {
+                            init = Vector3::from([
+                                params[0].coerce_const(),
+                                params[1].coerce_const(),
+                                params[2].coerce_const(),
+                            ]);
                         } else {
-                            error!("Invalid qualifier shared");
+                            error!("Invalid initializer !");
                         }
                     }
                 }
-            }
+                other => {
+                    error!("Unsupported setting : {}", other)
+                }
+            });
             return Ok(if color {
                 Slider::Color {
                     name,
@@ -311,32 +331,23 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
                 }
             });
         }
-        TypeSpecifierNonArray::Bool => {
+        TypeSpecifierNonArrayData::Bool => {
             let mut init = 0;
 
-            if let Some(TypeQualifier { qualifiers }) = field.qualifier.as_ref() {
-                if let TypeQualifierSpec::Layout(LayoutQualifier { ids }) =
-                    qualifiers.first().unwrap()
-                {
-                    for qualifier in ids.iter() {
-                        if let LayoutQualifierSpec::Identifier(id, param) = qualifier {
-                            match id.content.0.as_str() {
-                                "init" => match param.as_ref().unwrap().as_ref() {
-                                    Expr::BoolConst(value) => {
-                                        init = if *value { 1 } else { 0 };
-                                    }
-                                    _ => {
-                                        error!("Expected boolean value");
-                                    }
-                                },
-                                other => {
-                                    error!("Wrong slider setting : {}", other);
-                                }
-                            }
-                        }
+            process_layout_qualifier_on_field(field, |key, value| match key {
+                "init" => match value.content {
+                    ExprData::BoolConst(value) => {
+                        init = if value { 1 } else { 0 };
                     }
+                    _ => {
+                        error!("Expected boolean value");
+                    }
+                },
+                other => {
+                    error!("Wrong slider setting : {}", other);
                 }
-            }
+            });
+
             return Ok(Slider::Bool {
                 name,
                 value: init,
@@ -349,62 +360,52 @@ pub fn create_slider_from_field(field: &StructFieldSpecifier) -> Result<Slider> 
 }
 
 /// Replace the layout(params) with a predefined layout(set=?, binding=?)
-pub fn convert_params_block(block: &mut Block) {
-    block.qualifier.qualifiers[0] = TypeQualifierSpec::Layout(LayoutQualifier {
-        ids: vec![
-            LayoutQualifierSpec::Identifier(
-                Identifier {
-                    content: IdentifierData(SmolStr::new("std140")),
-                    span: None,
-                },
-                None,
-            ),
-            LayoutQualifierSpec::Identifier(
-                Identifier {
-                    content: IdentifierData(SmolStr::new("set")),
-                    span: None,
-                },
-                Some(Box::new(Expr::IntConst(1))),
-            ),
-            LayoutQualifierSpec::Identifier(
-                Identifier {
-                    content: IdentifierData(SmolStr::new("binding")),
-                    span: None,
-                },
-                Some(Box::new(Expr::IntConst(0))),
-            ),
-        ],
-    });
-}
-
-/// Replace the layout(min=?, max=?) with nothing
-pub fn convert_field(field: &mut StructFieldSpecifier) {
-    field.qualifier = None;
+pub fn convert_params_block(block: &mut BlockData) {
+    // I could have used glsl-lang-quote instead of creating the ast by hand
+    block.qualifier.content.qualifiers[0] = TypeQualifierSpecData::Layout(
+        LayoutQualifierData {
+            ids: vec![
+                LayoutQualifierSpecData::Identifier(
+                    IdentifierData(SmolStr::new("std140")).into(),
+                    None,
+                )
+                .into(),
+                LayoutQualifierSpecData::Identifier(
+                    IdentifierData(SmolStr::new("set")).into(),
+                    Some(Box::new(ExprData::IntConst(1).into())),
+                )
+                .into(),
+                LayoutQualifierSpecData::Identifier(
+                    IdentifierData(SmolStr::new("binding")).into(),
+                    Some(Box::new(ExprData::IntConst(0).into())),
+                )
+                .into(),
+            ],
+        }
+        .into(),
+    )
+    .into();
 }
 
 pub fn extract(source: &str) -> Result<(ShaderMetadata, String)> {
     let mut metadata = ShaderMetadata::default();
 
-    // The AST
-    let (mut ast, _ctx) = TranslationUnit::parse_with_options(
-        source,
-        &ParseOptions {
+    let (mut ast, _, _) = ParseBuilder::<DefaultLexer, TranslationUnit>::new(source)
+        .opts(&ParseOptions {
+            default_version: 460,
             target_vulkan: true,
-            source_id: 0,
+            source_id: FileId::new(0),
             allow_rs_ident: false,
-        }
-        .build(),
-    )?;
+        })
+        .context(&ParseContext::new_with_comments())
+        .parse()?;
 
     // Extract some ast juice
     ast.visit_mut(&mut metadata);
 
     let mut transpiled = String::new();
-    glsl_lang::transpiler::glsl::show_translation_unit(
-        &mut transpiled,
-        &ast,
-        FormattingState::default(),
-    )?;
+    show_translation_unit(&mut transpiled, &ast, FormattingState::default())?;
+    debug!("{}", &transpiled);
     Ok((metadata, transpiled))
 }
 
@@ -412,70 +413,35 @@ trait CoerceConst<T> {
     fn coerce_const(&self) -> T;
 }
 
-impl<T> CoerceConst<f32> for T
-where
-    T: Borrow<Expr>,
-{
-    fn coerce_const(&self) -> f32 {
-        match self.borrow() {
-            Expr::IntConst(value) => *value as f32,
-            Expr::UIntConst(value) => *value as f32,
-            Expr::FloatConst(value) => *value,
-            Expr::DoubleConst(value) => *value as f32,
-            _ => {
-                panic!("Not a number constant")
+macro_rules! coerceconst_impl {
+    ($ty:ty) => {
+        impl<T> CoerceConst<$ty> for T
+        where
+            T: Borrow<ExprData>,
+        {
+            fn coerce_const(&self) -> $ty {
+                match self.borrow() {
+                    ExprData::IntConst(value) => *value as $ty,
+                    ExprData::UIntConst(value) => *value as $ty,
+                    ExprData::FloatConst(value) => *value as $ty,
+                    ExprData::DoubleConst(value) => *value as $ty,
+                    ExprData::BoolConst(value) => {
+                        if *value {
+                            1 as $ty
+                        } else {
+                            0 as $ty
+                        }
+                    }
+                    _ => {
+                        panic!("Anything other than a constant is not supported")
+                    }
+                }
             }
         }
-    }
+    };
 }
 
-impl<T> CoerceConst<f64> for T
-where
-    T: Borrow<Expr>,
-{
-    fn coerce_const(&self) -> f64 {
-        match self.borrow() {
-            Expr::IntConst(value) => *value as f64,
-            Expr::UIntConst(value) => *value as f64,
-            Expr::FloatConst(value) => *value as f64,
-            Expr::DoubleConst(value) => *value,
-            _ => {
-                panic!("Not a number constant")
-            }
-        }
-    }
-}
-
-impl<T> CoerceConst<i32> for T
-where
-    T: Borrow<Expr>,
-{
-    fn coerce_const(&self) -> i32 {
-        match self.borrow() {
-            Expr::IntConst(value) => *value,
-            Expr::UIntConst(value) => *value as i32,
-            Expr::FloatConst(value) => *value as i32,
-            Expr::DoubleConst(value) => *value as i32,
-            _ => {
-                panic!("Not a number constant")
-            }
-        }
-    }
-}
-
-impl<T> CoerceConst<u32> for T
-where
-    T: Borrow<Expr>,
-{
-    fn coerce_const(&self) -> u32 {
-        match self.borrow() {
-            Expr::IntConst(value) => *value as u32,
-            Expr::UIntConst(value) => *value,
-            Expr::FloatConst(value) => *value as u32,
-            Expr::DoubleConst(value) => *value as u32,
-            _ => {
-                panic!("Not a number constant")
-            }
-        }
-    }
-}
+coerceconst_impl!(f32);
+coerceconst_impl!(f64);
+coerceconst_impl!(u32);
+coerceconst_impl!(i32);

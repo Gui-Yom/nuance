@@ -31,8 +31,8 @@ fn main() -> Result<()> {
         .filter_module("wgpu_hal::vulkan::instance", LevelFilter::Off)
         .filter_module("wgpu_hal::vulkan::adapter", LevelFilter::Warn)
         .filter_module("wgpu_hal::dx12::instance", LevelFilter::Error)
-        .filter_module("naga::front", LevelFilter::Warn)
-        .filter_module("naga::valid", LevelFilter::Warn)
+        .filter_module("naga::front", LevelFilter::Info)
+        .filter_module("naga::valid", LevelFilter::Info)
         .init();
 
     info!("Starting up !");

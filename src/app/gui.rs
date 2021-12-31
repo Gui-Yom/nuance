@@ -1,9 +1,9 @@
 use std::mem;
-use std::sync::Arc;
 use std::time::Duration;
 
 use egui::special_emojis::GITHUB;
-use egui::{ClippedMesh, Color32, CtxRef, DragValue, Frame, Id, Texture, TextureId, Ui};
+use egui::{ClippedMesh, Color32, DragValue, Frame, Id, TextureId, Ui};
+use egui::{Context, TexturesDelta};
 use egui_wgpu_backend::ScreenDescriptor;
 use image::ImageFormat;
 use winit::event::WindowEvent;
@@ -14,7 +14,7 @@ use crate::app::Nuance;
 
 pub struct Gui {
     /// Egui context
-    context: CtxRef,
+    context: Context,
     /// Egui subsystem
     pub egui_platform: egui_winit::State,
     /// Logical size
@@ -27,7 +27,7 @@ pub struct Gui {
 impl Gui {
     pub fn new(egui_platform: egui_winit::State, ui_width: u32) -> Self {
         Self {
-            context: CtxRef::default(),
+            context: Context::default(),
             egui_platform,
             ui_width,
             profiling_window: false,
@@ -39,7 +39,10 @@ impl Gui {
         self.egui_platform.on_event(&self.context, event);
     }
 
-    pub fn render(app: &mut Nuance, window: &ScreenDescriptor) -> Vec<ClippedMesh> {
+    pub fn render(
+        app: &mut Nuance,
+        window: &ScreenDescriptor,
+    ) -> (Vec<ClippedMesh>, bool, TexturesDelta) {
         // Profiler
         puffin::profile_scope!("create gui");
 
@@ -238,18 +241,20 @@ impl Gui {
         }
 
         // End the UI frame. We could now handle the output and draw the UI with the backend.
-        let (output, shapes) = app.gui.context.end_frame();
-        app.gui
-            .egui_platform
-            .handle_output(&app.window, &app.gui.context, output);
+        let output = app.gui.context.end_frame();
+        app.gui.egui_platform.handle_platform_output(
+            &app.window,
+            &app.gui.context,
+            output.platform_output,
+        );
 
         app.settings.target_framerate = Duration::from_secs_f32(1.0 / framerate as f32);
 
-        app.gui.context.tessellate(shapes)
-    }
-
-    pub fn texture(&self) -> Arc<Texture> {
-        self.context.texture()
+        (
+            app.gui.context.tessellate(output.shapes),
+            output.needs_repaint,
+            output.textures_delta,
+        )
     }
 }
 

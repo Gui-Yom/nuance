@@ -32,14 +32,15 @@ opt-level = 3
 # Error types
 anyhow = "1"
 # GUI
-egui = { version = "0.15", features = ["mint"] }
-egui-winit = "0.15"
+egui = { version = "0.17", features = ["mint"] }
+egui-winit = "0.17"
 # Async runtime
 futures-executor = "0.3"
 # GLSL parser
-glsl-lang = "0.1"
+glsl-lang = { version = "0.2", features = ["lexer-v2-min"] }
+lang-util = "0.2"
 # Image encoding for export
-image = { version = "0.23", default-features = false, features = ["png", "bmp", "jpeg", "gif"] }
+image = { version = "0.24", default-features = false, features = ["png", "bmp", "jpeg", "gif"] }
 lazy_static = "1.4"
 # Logger api
 log = { version = "0.4", features = ["std"] }
@@ -48,20 +49,20 @@ mint = "0.5"
 # Filesystem watcher
 notify = "4"
 # Profiling
-puffin = "0.10"
+puffin = "0.13"
 # Profiling ui
-puffin_egui = { version = "0.9", optional = true }
+puffin_egui = { version = "0.13", optional = true }
 # File dialogs
-rfd = "0.5"
+rfd = "0.8"
 # GLSL compilation
 # I consider naga to be too damn much instable atm (plus it doesn't support includes)
 shaderc = "0.7"
 # Logger implementation
 env_logger = "0.9"
 # GPU API
-wgpu = { version = "0.11", features = ["spirv"] }
+wgpu = { version = "0.12", features = ["spirv"] }
 # Shell/Windowing
-winit = { version = "0.25", features = ["mint"] }
+winit = { version = "0.26", features = ["mint"] }
 
 # Converting structs to uniforms with alignment
 [dependencies.crevice]
@@ -71,7 +72,8 @@ version = "0.8"
 
 # Render pass for egui with wgpu
 [dependencies.egui_wgpu_backend]
-version = "0.13"
-git = "https://github.com/hasenbanck/egui_wgpu_backend"
-rev = "961125e7bd2c71c5ead1d61a7ca7ffa8c0d17f48"
+version = "0.17"
+#git = "https://github.com/Jengamon/egui_wgpu_backend"
+#branch = "egui-0.16"
+#rev = "961125e7bd2c71c5ead1d61a7ca7ffa8c0d17f48"
 #path = "../egui_wgpu_backend"
